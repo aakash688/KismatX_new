@@ -1,0 +1,244 @@
+{
+  "demo_users": [
+    {
+      "user_id": "admin001",
+      "first_name": "Admin",
+      "last_name": "User",
+      "email": "admin@kismatx.com",
+      "mobile": "9876543210",
+      "password": "admin123",
+      "user_type": "admin",
+      "status": "active",
+      "deposit_amount": 0.00
+    },
+    {
+      "user_id": "player001",
+      "first_name": "John",
+      "last_name": "Doe",
+      "email": "john.doe@example.com",
+      "mobile": "1234567890",
+      "password": "password123",
+      "user_type": "player",
+      "status": "active",
+      "deposit_amount": 1000.00,
+      "address": "123 Gaming Street",
+      "city": "Mumbai",
+      "state": "Maharashtra",
+      "pin_code": "400001",
+      "region": "West"
+    },
+    {
+      "user_id": "player002",
+      "first_name": "Jane",
+      "last_name": "Smith",
+      "email": "jane.smith@example.com",
+      "mobile": "9876543211",
+      "password": "password123",
+      "user_type": "player",
+      "status": "active",
+      "deposit_amount": 500.00,
+      "address": "456 Game Lane",
+      "city": "Delhi",
+      "state": "Delhi",
+      "pin_code": "110001",
+      "region": "North"
+    },
+    {
+      "user_id": "moderator001",
+      "first_name": "Mike",
+      "last_name": "Johnson",
+      "email": "mike.johnson@kismatx.com",
+      "mobile": "8765432109",
+      "password": "moderator123",
+      "user_type": "moderator",
+      "status": "active",
+      "deposit_amount": 0.00,
+      "address": "789 Admin Plaza",
+      "city": "Bangalore",
+      "state": "Karnataka",
+      "pin_code": "560001",
+      "region": "South"
+    }
+  ],
+  "demo_roles": [
+    {
+      "name": "super_admin",
+      "description": "Super administrator with full system access",
+      "isActive": true
+    },
+    {
+      "name": "admin",
+      "description": "Administrator with user management access",
+      "isActive": true
+    },
+    {
+      "name": "moderator",
+      "description": "Game moderator with limited admin access",
+      "isActive": true
+    },
+    {
+      "name": "player",
+      "description": "Regular game player",
+      "isActive": true
+    },
+    {
+      "name": "vip_player",
+      "description": "VIP player with special privileges",
+      "isActive": true
+    }
+  ],
+  "demo_permissions": [
+    {
+      "name": "user_management",
+      "description": "Manage users (create, read, update, delete)",
+      "resource": "user",
+      "action": "manage",
+      "isActive": true
+    },
+    {
+      "name": "role_management",
+      "description": "Manage roles and permissions",
+      "resource": "role",
+      "action": "manage",
+      "isActive": true
+    },
+    {
+      "name": "game_management",
+      "description": "Manage game sessions and settings",
+      "resource": "game",
+      "action": "manage",
+      "isActive": true
+    },
+    {
+      "name": "dashboard_access",
+      "description": "Access admin dashboard",
+      "resource": "dashboard",
+      "action": "read",
+      "isActive": true
+    },
+    {
+      "name": "audit_logs",
+      "description": "View audit logs and system activity",
+      "resource": "audit",
+      "action": "read",
+      "isActive": true
+    },
+    {
+      "name": "user_verification",
+      "description": "Verify user email and mobile",
+      "resource": "user",
+      "action": "verify",
+      "isActive": true
+    },
+    {
+      "name": "deposit_management",
+      "description": "Manage user deposits and transactions",
+      "resource": "deposit",
+      "action": "manage",
+      "isActive": true
+    },
+    {
+      "name": "game_play",
+      "description": "Play games and participate",
+      "resource": "game",
+      "action": "play",
+      "isActive": true
+    },
+    {
+      "name": "profile_management",
+      "description": "Manage own profile",
+      "resource": "profile",
+      "action": "manage",
+      "isActive": true
+    },
+    {
+      "name": "view_statistics",
+      "description": "View game statistics and reports",
+      "resource": "statistics",
+      "action": "read",
+      "isActive": true
+    }
+  ],
+  "demo_role_permissions": {
+    "super_admin": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+    "admin": [1, 2, 4, 5, 6, 7, 9],
+    "moderator": [3, 4, 8, 9, 10],
+    "player": [8, 9],
+    "vip_player": [8, 9, 10]
+  },
+  "demo_user_roles": {
+    "admin001": ["super_admin"],
+    "player001": ["player"],
+    "player002": ["vip_player"],
+    "moderator001": ["moderator"]
+  },
+  "sample_requests": {
+    "register_player": {
+      "method": "POST",
+      "url": "http://localhost:5001/api/auth/register",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "user_id": "newplayer001",
+        "first_name": "New",
+        "last_name": "Player",
+        "email": "newplayer@example.com",
+        "mobile": "1111111111",
+        "password": "password123",
+        "alternate_mobile": "2222222222",
+        "address": "New Player Address",
+        "city": "Chennai",
+        "state": "Tamil Nadu",
+        "pin_code": "600001",
+        "region": "South"
+      }
+    },
+    "login_admin": {
+      "method": "POST",
+      "url": "http://localhost:5001/api/auth/login",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "email_or_mobile": "admin@kismatx.com",
+        "password": "admin123"
+      }
+    },
+    "create_role": {
+      "method": "POST",
+      "url": "http://localhost:5001/api/admin/roles",
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer YOUR_ADMIN_TOKEN"
+      },
+      "body": {
+        "name": "game_master",
+        "description": "Game master with special game control permissions",
+        "permissions": [3, 8, 9, 10]
+      }
+    },
+    "assign_role_to_user": {
+      "method": "POST",
+      "url": "http://localhost:5001/api/admin/users/USER_ID/roles",
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer YOUR_ADMIN_TOKEN"
+      },
+      "body": {
+        "role_ids": [1, 2]
+      }
+    }
+  },
+  "testing_workflow": [
+    "1. Register admin user (admin@kismatx.com)",
+    "2. Login as admin to get admin token",
+    "3. Create roles and permissions",
+    "4. Register player users",
+    "5. Assign roles to users",
+    "6. Test user login and profile access",
+    "7. Test admin functions (user management, audit logs)",
+    "8. Test role-based access control"
+  ]
+}
+

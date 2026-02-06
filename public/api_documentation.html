@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KismatX API Documentation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        .header h1 {
+            color: #2c3e50;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: #7f8c8d;
+            font-size: 1.2em;
+        }
+
+        .nav {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .nav h2 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+        }
+
+        .nav-buttons {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .nav-btn {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .nav-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+        
+        .demo-section {
+            display: flex;
+            gap: 10px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+        
+        .demo-info {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        
+        .demo-info h3 {
+            color: #495057;
+            margin-bottom: 15px;
+        }
+        
+        .demo-info ul, .demo-info ol {
+            margin-left: 20px;
+        }
+        
+        .demo-info li {
+            margin-bottom: 8px;
+            line-height: 1.5;
+        }
+
+        .section {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .section h2 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .endpoint {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            margin: 15px 0;
+            border-radius: 0 10px 10px 0;
+        }
+
+        .endpoint-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 10px;
+        }
+
+        .method {
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 12px;
+            text-transform: uppercase;
+        }
+
+        .method.get { background: #28a745; color: white; }
+        .method.post { background: #007bff; color: white; }
+        .method.put { background: #ffc107; color: black; }
+        .method.delete { background: #dc3545; color: white; }
+
+        .path {
+            font-family: 'Courier New', monospace;
+            background: #e9ecef;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+
+        .description {
+            color: #6c757d;
+            margin: 10px 0;
+        }
+
+        .params {
+            margin: 15px 0;
+        }
+
+        .params h4 {
+            color: #495057;
+            margin-bottom: 10px;
+        }
+
+        .param {
+            display: flex;
+            gap: 15px;
+            margin: 8px 0;
+            padding: 8px;
+            background: white;
+            border-radius: 5px;
+        }
+
+        .param-name {
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            min-width: 120px;
+        }
+
+        .param-type {
+            color: #6c757d;
+            font-style: italic;
+            min-width: 80px;
+        }
+
+        .param-desc {
+            color: #495057;
+        }
+
+        .test-section {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .test-form {
+            display: grid;
+            gap: 15px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group label {
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #495057;
+        }
+
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            padding: 10px;
+            border: 2px solid #e9ecef;
+            border-radius: 5px;
+            font-size: 14px;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .test-btn {
+            background: linear-gradient(45deg, #28a745, #20c997);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .test-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .response {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 15px;
+            font-family: 'Courier New', monospace;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-success { background: #28a745; }
+        .status-error { background: #dc3545; }
+        .status-warning { background: #ffc107; }
+
+        .toc {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+
+        .toc h3 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+        }
+
+        .toc ul {
+            list-style: none;
+        }
+
+        .toc li {
+            margin: 8px 0;
+        }
+
+        .toc a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .toc a:hover {
+            text-decoration: underline;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+            
+            .nav-buttons {
+                flex-direction: column;
+            }
+            
+            .endpoint-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎮 KismatX API Documentation</h1>
+            <p>Comprehensive RBAC-based Gaming Platform API</p>
+        </div>
+
+        <div class="nav">
+            <h2>📚 Quick Navigation</h2>
+            <div class="nav-buttons">
+                <a href="#authentication" class="nav-btn">🔐 Authentication</a>
+                <a href="#user-management" class="nav-btn">👤 User Management</a>
+                <a href="#admin-panel" class="nav-btn">⚙️ Admin Panel</a>
+                <a href="#roles-permissions" class="nav-btn">🛡️ Roles & Permissions</a>
+                <a href="#testing" class="nav-btn">🧪 API Testing</a>
+                <a href="#postman" class="nav-btn">📮 Postman Collection</a>
+            </div>
+        </div>
+
+        <div class="toc">
+            <h3>📋 Table of Contents</h3>
+            <ul>
+                <li><a href="#authentication">Authentication & Session Management</a></li>
+                <li><a href="#user-management">User Management (General & Admin)</a></li>
+                <li><a href="#verification">Verification Management</a></li>
+                <li><a href="#roles-permissions">Role & Permission Management</a></li>
+                <li><a href="#admin-dashboard">Admin Dashboard & Logging</a></li>
+                <li><a href="#testing">API Testing Interface</a></li>
+                <li><a href="#postman">Postman Collection Download</a></li>
+            </ul>
+        </div>
+
+        <div id="authentication" class="section">
+            <h2>🔐 Authentication & Session Management</h2>
+            
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="method post">POST</span>
+                    <span class="path">/api/auth/register</span>
+                </div>
+                <div class="description">Register a new user account</div>
+                <div class="params">
+                    <h4>Request Body:</h4>
+                    <div class="param">
+                        <span class="param-name">user_id</span>
+                        <span class="param-type">string</span>
+                        <span class="param-desc">Unique user identifier</span>
+                    </div>
+                    <div class="param">
+                        <span class="param-name">first_name</span>
+                        <span class="param-type">string</span>
+                        <span class="param-desc">User's first name</span>
+                    </div>
+                    <div class="param">
+                        <span class="param-name">last_name</span>
+                        <span class="param-type">string</span>
+                        <span class="param-desc">User's last name</span>
+                    </div>
+                    <div class="param">
+                        <span class="param-name">email</span>
+                        <span class="param-type">string</span>
+                        <span class="param-desc">User's email address</span>
+                    </div>
+                    <div class="param">
+                        <span class="param-name">mobile</span>
+                        <span class="param-type">string</span>
+                        <span class="param-desc">User's mobile number</span>
+                    </div>
+                    <div class="param">
+                        <span class="param-name">password</span>
+                        <span class="param-type">string</span>
+                        <span class="param-desc">User's password</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="method post">POST</span>
+                    <span class="path">/api/auth/login</span>
+                </div>
+                <div class="description">Login with email/mobile and password</div>
+                <div class="params">
+                    <h4>Request Body:</h4>
+                    <div class="param">
+                        <span class="param-name">email_or_mobile</span>
+                        <span class="param-type">string</span>
+                        <span class="param-desc">Email or mobile number</span>
+                    </div>
+                    <div class="param">
+                        <span class="param-name">password</span>
+                        <span class="param-type">string</span>
+                        <span class="param-desc">User's password</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="method post">POST</span>
+                    <span class="path">/api/auth/logout</span>
+                </div>
+                <div class="description">Logout and invalidate tokens</div>
+            </div>
+
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="method post">POST</span>
+                    <span class="path">/api/auth/refresh-token</span>
+                </div>
+                <div class="description">Refresh expired access token</div>
+            </div>
+
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="method post">POST</span>
+                    <span class="path">/api/auth/forgot-password</span>
+                </div>
+                <div class="description">Request password reset</div>
+            </div>
+
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="method post">POST</span>
+                    <span class="path">/api/auth/reset-password</span>
+                </div>
+                <div class="description">Reset password with token</div>
+            </div>
+        </div>
+
+        <div id="user-management" class="section">
+            <h2>👤 User Management</h2>
+            
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="method get">GET</span>
+                    <span class="path">/api/user/profile</span>
+                </div>
+                <div class="description">Get current user profile</div>
+            </div>
+
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="method put">PUT</span>
+                    <span class="path">/api/user/profile</span>
+                </div>
+                <div class="description">Update user profile</div>
+            </div>
+
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="method post">POST</span>
+                    <span class="path">/api/admin/users</span>
+                </div>
+                <div class="description">Create new user (Admin only)</div>
+            </div>
+
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="method get">GET</span>
+                    <span class="path">/api/admin/users</span>
+                </div>
+                <div class="description">List all users (Admin only)</div>
+            </div>
+
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="method get">GET</span>
+                    <span class="path">/api/admin/users/:id</span>
+                </div>
+                <div class="description">Get user by ID (Admin only)</div>
+            </div>
+
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="method put">PUT</span>
+                    <span class="path">/api/admin/users/:id</span>
+                </div>
+                <div class="description">Update any user (Admin only)</div>
+            </div>
+
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="method delete">DELETE</span>
+                    <span class="path">/api/admin/users/:id</span>
+                </div>
+                <div class="description">Delete or ban user (Admin only)</div>
+            </div>
+        </div>
+
+        <div id="admin-panel" class="section">
+            <h2>⚙️ Admin Panel</h2>
+            
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="method get">GET</span>
+                    <span class="path">/api/admin/dashboard</span>
+                </div>
+                <div class="description">Get admin dashboard summary</div>
+            </div>
+
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="method get">GET</span>
+                    <span class="path">/api/admin/audit-logs</span>
+                </div>
+                <div class="description">View audit logs with filtering</div>
+            </div>
+
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="method get">GET</span>
+                    <span class="path">/api/admin/users/:id/logins</span>
+                </div>
+                <div class="description">View user login history</div>
+            </div>
+        </div>
+
+        <div id="roles-permissions" class="section">
+            <h2>🛡️ Role & Permission Management</h2>
+            
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="method post">POST</span>
+                    <span class="path">/api/admin/roles</span>
+                </div>
+                <div class="description">Create a new role</div>
+            </div>
+
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="method get">GET</span>
+                    <span class="path">/api/admin/roles</span>
+                </div>
+                <div class="description">List all roles</div>
+            </div>
+
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="method post">POST</span>
+                    <span class="path">/api/admin/permissions</span>
+                </div>
+                <div class="description">Create a new permission</div>
+            </div>
+
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="method post">POST</span>
+                    <span class="path">/api/admin/roles/:id/permissions</span>
+                </div>
+                <div class="description">Assign permissions to role</div>
+            </div>
+
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="method post">POST</span>
+                    <span class="path">/api/admin/users/:id/roles</span>
+                </div>
+                <div class="description">Assign roles to user</div>
+            </div>
+        </div>
+
+        <div id="testing" class="section">
+            <h2>🧪 API Testing Interface</h2>
+            
+            <div class="test-section">
+                <h3>Test API Endpoints</h3>
+                <form class="test-form" id="apiTestForm">
+                    <div class="form-group">
+                        <label for="testMethod">HTTP Method:</label>
+                        <select id="testMethod" name="method">
+                            <option value="GET">GET</option>
+                            <option value="POST">POST</option>
+                            <option value="PUT">PUT</option>
+                            <option value="DELETE">DELETE</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="testUrl">API Endpoint:</label>
+                        <input type="text" id="testUrl" name="url" placeholder="/api/auth/login" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="testHeaders">Headers (JSON):</label>
+                        <textarea id="testHeaders" name="headers" rows="3" placeholder='{"Content-Type": "application/json"}'></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="testBody">Request Body (JSON):</label>
+                        <textarea id="testBody" name="body" rows="5" placeholder='{"email": "test@example.com", "password": "password123"}'></textarea>
+                    </div>
+                    
+                    <button type="submit" class="test-btn">🚀 Test API</button>
+                </form>
+                
+                <div id="testResponse" class="response" style="display: none;"></div>
+            </div>
+        </div>
+
+        <div id="postman" class="section">
+            <h2>📮 Postman Collection & Demo Data</h2>
+            <p>Download the complete Postman collection with demo data for easy API testing:</p>
+            <div class="demo-section">
+                <a href="/api/postman-collection" class="nav-btn" download="KismatX-API-Collection.json">
+                    📥 Download Dynamic Collection
+                </a>
+                <a href="/KismatX-API-Collection.json" class="nav-btn" download="KismatX-API-Collection.json">
+                    📥 Download Static Collection
+                </a>
+                <a href="/demo-data.json" class="nav-btn" download="demo-data.json">
+                    📊 Download Demo Data
+                </a>
+            </div>
+            
+            <div class="demo-info">
+                <h3>🎯 Demo Data Included:</h3>
+                <ul>
+                    <li><strong>Sample Users:</strong> Admin, Players, Moderator with realistic data</li>
+                    <li><strong>Pre-configured Roles:</strong> Super Admin, Admin, Moderator, Player, VIP Player</li>
+                    <li><strong>Permission System:</strong> Complete RBAC permissions for gaming platform</li>
+                    <li><strong>Test Workflow:</strong> Step-by-step testing guide</li>
+                    <li><strong>Sample Requests:</strong> Ready-to-use API calls with proper data</li>
+                </ul>
+                
+                <h3>🚀 Quick Start Testing:</h3>
+                <ol>
+                    <li>Download the Postman collection</li>
+                    <li>Import into Postman</li>
+                    <li>Start with "Register Admin" request</li>
+                    <li>Login as admin to get tokens</li>
+                    <li>Test all admin functions</li>
+                    <li>Register players and test user functions</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // API Testing functionality
+        document.getElementById('apiTestForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            const method = formData.get('method');
+            const url = formData.get('url');
+            const headers = formData.get('headers');
+            const body = formData.get('body');
+            
+            const responseDiv = document.getElementById('testResponse');
+            responseDiv.style.display = 'block';
+            responseDiv.innerHTML = 'Testing API...';
+            
+            try {
+                const requestOptions = {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(headers ? JSON.parse(headers) : {})
+                    }
+                };
+                
+                if (body && method !== 'GET') {
+                    requestOptions.body = body;
+                }
+                
+                const response = await fetch(url, requestOptions);
+                const responseText = await response.text();
+                
+                let responseData;
+                try {
+                    responseData = JSON.parse(responseText);
+                } catch {
+                    responseData = responseText;
+                }
+                
+                const statusClass = response.ok ? 'status-success' : 'status-error';
+                const statusIndicator = `<span class="status-indicator ${statusClass}"></span>`;
+                
+                responseDiv.innerHTML = `${statusIndicator}Status: ${response.status} ${response.statusText}
+                
+Response:
+${JSON.stringify(responseData, null, 2)}`;
+                
+            } catch (error) {
+                responseDiv.innerHTML = `<span class="status-indicator status-error"></span>Error: ${error.message}`;
+            }
+        });
+
+        // Smooth scrolling for navigation
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+    </script>
+</body>
+</html>

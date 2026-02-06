@@ -1,0 +1,1736 @@
+{
+	"info": {
+		"_postman_id": "2cd60a68-9263-4b04-9e7d-abcad97e8383",
+		"name": "KismatX API Collection",
+		"description": "Comprehensive RBAC-based Gaming Platform API with complete betting, wallet, game management, and admin functionality. Includes all endpoints for the KismatX platform.\n\n## Features:\n- Authentication & Authorization (JWT tokens, role-based access)\n- User Management (profile, wallet, transactions)\n- Game Management (auto-scheduled games every 5 minutes, settlement)\n- Betting System (place bets, claim winnings, cancel slips, statistics)\n- Wallet Management (recharge, withdrawal, transaction history)\n- Admin Panel (dashboard, user management, audit logs)\n- Settings Management (game multiplier, limits, result type)\n- RBAC System (roles, permissions, assignments)\n- Live Settlement Dashboard (real-time game monitoring and manual settlement)\n\n## Key Endpoints:\n- **Authentication**: Login, Register, Refresh Token, Logout\n- **User**: Profile management, wallet info, change password\n- **Betting**: Place bets, claim winnings, cancel slips, view statistics, daily bets\n  - GET /api/bets/stats - Betting statistics (supports game_id parameter for detailed game-specific bets)\n  - GET /api/bets/daily - Daily bets with detailed information\n  - GET /api/bets/result/:identifier - Get bet slip result (read-only)\n  - POST /api/bets/scan-and-claim/:identifier - Scan barcode and auto-claim\n  - POST /api/bets/cancel/:identifier - Cancel own slip (users)\n- **Games**: Current game, game details, recent winners\n  - GET /api/games/recent-winners - Last 10 games' results (public)\n- **Admin**: Dashboard, user management, game settlement, live settlement\n  - GET /api/admin/games/live-settlement - Live settlement dashboard data\n  - POST /api/admin/games/:gameId/settle - Settle game manually\n  - GET /api/admin/games/:gameId/settlement-decision - Settlement decision data\n  - POST /api/admin/slips/:identifier/cancel - Cancel any slip (admins)\n- **Wallet**: Transactions, logs, summaries\n  - GET /api/user/wallet-info - User wallet balance and last bet transaction\n\n## Authentication:\n- Use Login endpoints to get accessToken and refreshToken\n- Tokens are automatically saved to collection variables\n- Include 'Authorization: Bearer {{accessToken}}' header for authenticated requests\n\n## Base URL:\n- Default: http://localhost:5001\n- Update 'baseUrl' variable to change environment\n\n## Important Notes:\n- **Amounts vs Quantities**: In betting statistics, amounts (total_bets_placed, total_winnings, net_profit) are money values, while quantities (total_slips, winning_slips, etc.) are counts.\n- **Game ID Format**: YYYYMMDDHHMM (e.g., 202411031400 for Nov 3, 2024 at 14:00 IST)\n- **Barcode Format**: GAME_YYYYMMDDHHMM_UUIDPREFIX_CHECKSUM\n- **Settlement Window**: 10 seconds after game completion for manual settlement",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "45633474",
+		"_collection_link": "https://yantralogic.postman.co/workspace/Team-Workspace~46c6cf3f-3b9c-456a-8fd3-61b96ab807d4/collection/45633474-2cd60a68-9263-4b04-9e7d-abcad97e8383?action=share&source=collection_link&creator=45633474"
+	},
+	"item": [
+		{
+			"name": "🔐 Authentication",
+			"item": [
+				{
+					"name": "Register Player",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"userid\": \"player001\",\n  \"password\": \"password123\",\n  \"email\": \"john.doe@example.com\",\n  \"mobileno\": \"1234567890\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/register",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "register"]
+						},
+						"description": "Register a new player account. Creates a user with player role by default."
+					},
+					"response": []
+				},
+				{
+					"name": "Login Player (user_id)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const response = pm.response.json();",
+									"    pm.collectionVariables.set('accessToken', response.accessToken);",
+									"    pm.collectionVariables.set('refreshToken', response.refreshToken);",
+									"    pm.collectionVariables.set('userId', response.user.id);",
+									"    console.log('Login successful! Token saved.');",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"userid\": \"player001\",\n  \"password\": \"password123\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/login",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "login"]
+						},
+						"description": "Login with user_id and password. Returns accessToken and refreshToken. Tokens are automatically saved to collection variables."
+					},
+					"response": []
+				},
+				{
+					"name": "Login Admin (user_id)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const response = pm.response.json();",
+									"    pm.collectionVariables.set('adminToken', response.accessToken);",
+									"    console.log('Admin login successful! Token saved.');",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"userid\": \"admin001\",\n  \"password\": \"admin123\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/login",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "login"]
+						},
+						"description": "Login as admin. Admin token is saved to adminToken variable."
+					},
+					"response": []
+				},
+				{
+					"name": "Logout",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/logout",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "logout"]
+						},
+						"description": "Logout and invalidate refresh token. Requires authentication."
+					},
+					"response": []
+				},
+				{
+					"name": "Refresh Token",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const response = pm.response.json();",
+									"    if (response.accessToken) {",
+									"        pm.collectionVariables.set('accessToken', response.accessToken);",
+									"        console.log('✅ Access token refreshed and saved!');",
+									"    }",
+									"    if (response.refreshToken) {",
+									"        pm.collectionVariables.set('refreshToken', response.refreshToken);",
+									"        console.log('✅ Refresh token updated!');",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/refresh-token",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "refresh-token"]
+						},
+						"description": "Refresh access token using refresh token. This endpoint generates a new access token when the current one expires. No Authorization header required - only the refreshToken in the request body. Automatically saves the new accessToken to collection variables for use in subsequent requests. Use this when you get 401 Unauthorized errors."
+					},
+					"response": []
+				},
+				{
+					"name": "Forgot Password",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"userid\": \"player001\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/forgot-password",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "forgot-password"]
+						},
+						"description": "Request password reset. Sends reset link to user's email."
+					},
+					"response": []
+				},
+				{
+					"name": "Reset Password",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"token\": \"reset_token_from_email\",\n  \"password\": \"newpassword123\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/reset-password",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "reset-password"]
+						},
+						"description": "Reset password using token from email."
+					},
+					"response": []
+				}
+			],
+			"description": "Authentication flows for KismatX. Login uses user_id + password. Tokens are automatically saved to collection variables for use in subsequent requests."
+		},
+		{
+			"name": "👤 User Management",
+			"item": [
+				{
+					"name": "Get My Profile",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/user/me",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "user", "me"]
+						},
+						"description": "Get current authenticated user's profile information including roles."
+					},
+					"response": []
+				},
+				{
+					"name": "Get User Profile",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/user/profile",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "user", "profile"]
+						},
+						"description": "Get detailed user profile with photo URL."
+					},
+					"response": []
+				},
+				{
+					"name": "Update My Profile",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"fname\": \"John\",\n  \"lname\": \"Doe\",\n  \"email\": \"john.doe@example.com\",\n  \"mobileno\": \"1234567890\",\n  \"birthDate\": \"1990-01-01\",\n  \"bloodGroup\": \"O+\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/user/profile",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "user", "profile"]
+						},
+						"description": "Update user profile information. All fields are optional."
+					},
+					"response": []
+				},
+				{
+					"name": "Change My Password",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"oldPassword\": \"password123\",\n  \"newPassword\": \"newpassword123\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/change-password",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "change-password"]
+						},
+						"description": "Change password for authenticated user. Requires current password."
+					},
+					"response": []
+				},
+				{
+					"name": "Get User Wallet Info",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/user/wallet-info",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "user", "wallet-info"]
+						},
+						"description": "Get logged-in user's wallet balance and last bet transaction amount. Returns username, wallet balance, and details of the most recent bet slip (transaction amount, game_id, slip_id, barcode, status, created_at). If user has no bets, last_bet will be null."
+					},
+					"response": []
+				}
+			],
+			"description": "User profile management endpoints. All endpoints require authentication."
+		},
+		{
+			"name": "💰 Wallet Management",
+			"item": [
+				{
+					"name": "Create Transaction (Admin) - Recharge",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{adminToken}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"user_id\": {{userId}},\n  \"transaction_type\": \"recharge\",\n  \"amount\": 1000.00,\n  \"transaction_direction\": \"credit\",\n  \"comment\": \"Wallet recharge for testing\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/wallet/transaction",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "wallet", "transaction"]
+						},
+						"description": "Create a wallet transaction (Admin only). Transaction types: recharge, withdrawal, game. Directions: credit (add), debit (deduct). Validates balance cannot go negative."
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Wallet Logs (Admin)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{adminToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/wallet/logs?page=1&limit=20&transaction_type=game&direction=debit",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "wallet", "logs"],
+							"query": [
+								{"key": "page", "value": "1"},
+								{"key": "limit", "value": "20"},
+								{"key": "transaction_type", "value": "game"},
+								{"key": "direction", "value": "debit"}
+							]
+						},
+						"description": "Get all wallet logs with filters and pagination (Admin only). Filters: user_id, transaction_type, direction, date_from, date_to, search."
+					},
+					"response": []
+				},
+				{
+					"name": "Get User Wallet Summary (Admin)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{adminToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/wallet/summary/{{userId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "wallet", "summary", "{{userId}}"]
+						},
+						"description": "Get wallet summary for a user (Admin only). Returns balance, total credits, total debits, and transaction count."
+					},
+					"response": []
+				},
+				{
+					"name": "Get User Transactions",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/wallet/{{userId}}?page=1&limit=20&transaction_type=game",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "wallet", "{{userId}}"],
+							"query": [
+								{"key": "page", "value": "1"},
+								{"key": "limit", "value": "20"},
+								{"key": "transaction_type", "value": "game"}
+							]
+						},
+						"description": "Get transactions for a user. Users can only view their own transactions. Admins can view any user's transactions."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Transaction by ID (Admin)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{adminToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/wallet/transaction/1",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "wallet", "transaction", "1"]
+						},
+						"description": "Get specific transaction by ID (Admin only)."
+					},
+					"response": []
+				},
+				{
+					"name": "Update Transaction Comment (Admin)",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{adminToken}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"comment\": \"Updated comment for transaction\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/wallet/transaction/1",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "wallet", "transaction", "1"]
+						},
+						"description": "Update transaction comment (Admin only)."
+					},
+					"response": []
+				}
+			],
+			"description": "Wallet management endpoints. Admin endpoints require admin token. Users can view their own transactions only."
+		},
+		{
+			"name": "🎮 Game Management",
+			"item": [
+				{
+					"name": "Get Current Active Game (Public)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/games/current",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "games", "current"]
+						},
+						"description": "Get currently active game. Public endpoint, no authentication required. Returns 404 if no active game."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Game by ID (Public)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/games/202412011200",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "games", "202412011200"]
+						},
+						"description": "Get game details by game ID. Public endpoint. Game ID format: YYYYMMDDHHMM (e.g., 202412011200 for Dec 1, 2024 at 12:00 IST)."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Recent Winners (Public)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/games/recent-winners",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "games", "recent-winners"]
+						},
+						"description": "Get last 10 games' results with winning cards. Public endpoint, no authentication required. Returns game_id and winning_card for the last 10 settled games. Only returns games where winning_card is not null."
+					},
+					"response": []
+				},
+				{
+					"name": "List All Games (Admin)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{adminToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/admin/games?page=1&limit=20&status=active",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "admin", "games"],
+							"query": [
+								{"key": "page", "value": "1"},
+								{"key": "limit", "value": "20"},
+								{"key": "status", "value": "active"}
+							]
+						},
+						"description": "List all games with pagination and filters (Admin only). Filter by status: pending, active, completed."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Game Statistics (Admin)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{adminToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/admin/games/202412011200/stats",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "admin", "games", "202412011200", "stats"]
+						},
+						"description": "Get detailed statistics for a game (Admin only). Returns total bets, total wagered, total payout, profit, and card totals."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Game Bets (Admin)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{adminToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/admin/games/202412011200/bets?page=1&limit=50",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "admin", "games", "202412011200", "bets"],
+							"query": [
+								{"key": "page", "value": "1"},
+								{"key": "limit", "value": "50"}
+							]
+						},
+						"description": "Get all bets for a specific game (Admin only). Returns paginated list of bet slips."
+					},
+					"response": []
+				},
+				{
+					"name": "Settle Game (Admin)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{adminToken}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"winning_card\": 7\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/admin/games/202412011200/settle",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "admin", "games", "202412011200", "settle"]
+						},
+						"description": "Settle a game by declaring winning card (Admin only). Winning card must be 1-12. In manual mode: can settle active or completed games. In auto mode: only completed games. Calculates payouts for all bet slips. Marks game as settled and updates all bet slip statuses (won/lost). Automatically excludes cancelled slips from payout calculations. Can be called from Live Settlement UI for manual settlement."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Settlement Report (Admin)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{adminToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/admin/games/202412011200/settlement-report",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "admin", "games", "202412011200", "settlement-report"]
+						},
+						"description": "Get detailed settlement report for a game (Admin only). Includes winning card, list of winning/losing slips, claim summary."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Settlement Decision Data (Admin)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{adminToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/admin/games/202412011200/settlement-decision",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "admin", "games", "202412011200", "settlement-decision"]
+						},
+						"description": "Get settlement decision data for a game (Admin only). Returns card analysis showing total bet amount, total payout, profit/loss, profit percentage, winning/losing slips count for each card (1-12). Cards sorted by profit. Allows admin to make informed decision on winning card selection. Available for active or completed games in manual mode."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Live Settlement Data (Admin)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{adminToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/admin/games/live-settlement",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "admin", "games", "live-settlement"]
+						},
+						"description": "Get live game settlement data (Admin only). Returns current game status, mode (auto/manual), card betting statistics with real-time profit/loss calculations for each card, time remaining, settlement window status, and last 10 settled games history. Perfect for live settlement dashboard."
+					},
+					"response": []
+				},
+				{
+					"name": "Cancel Bet Slip (Admin)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{adminToken}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"reason\": \"Admin cancellation - user request\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/admin/slips/KX-20241201-ABC123/cancel",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "admin", "slips", "KX-20241201-ABC123", "cancel"],
+							"variable": [
+								{
+									"key": "identifier",
+									"value": "KX-20241201-ABC123",
+									"description": "Slip ID (UUID) or barcode"
+								}
+							]
+						},
+						"description": "Cancel and refund any bet slip (Admin only). Admins can cancel any slip, not just their own. Cannot cancel if slip already claimed or game already settled. Refunds total bet amount to user wallet. Creates wallet log and audit log. Body: { \"reason\": \"optional reason\" }"
+					},
+					"response": []
+				}
+			],
+			"description": "Game management endpoints. Public endpoints for viewing games. Admin endpoints for game management, statistics, settlement, and slip cancellation. Games are automatically created every 5 minutes and transition states automatically. Includes live settlement dashboard support."
+		},
+		{
+			"name": "🎯 Betting",
+			"item": [
+				{
+					"name": "Place Bet",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							},
+							{
+								"key": "X-Idempotency-Key",
+								"value": "bet-{{$randomUUID}}",
+								"description": "Optional: Unique key to prevent duplicate bets. Auto-generated if not provided."
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"game_id\": \"202412011200\",\n  \"bets\": [\n    {\n      \"card_number\": 5,\n      \"bet_amount\": 100.00\n    },\n    {\n      \"card_number\": 7,\n      \"bet_amount\": 150.00\n    },\n    {\n      \"card_number\": 12,\n      \"bet_amount\": 50.00\n    }\n  ]\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/bets/place",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "bets", "place"]
+						},
+						"description": "Place a bet on an active game. Card numbers must be 1-12. Game must be active. User must have sufficient balance. Uses pessimistic locking to prevent race conditions. Returns 201 for new bet, 200 for duplicate (idempotency)."
+					},
+					"response": []
+				},
+				{
+					"name": "Claim Winnings",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"identifier\": \"550e8400-e29b-41d4-a716-446655440000\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/bets/claim",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "bets", "claim"]
+						},
+						"description": "Claim winnings from a winning bet slip. Identifier can be slip_id (UUID) or barcode (case-insensitive search). Prevents duplicate claims and blocks claims on cancelled slips. Adds winnings to user balance. Uses double locking (slip + wallet) for safety. Returns error if slip is cancelled, already claimed, or not in 'won' status."
+					},
+					"response": []
+				},
+				{
+					"name": "Get My Bets",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/bets/my-bets?page=1&limit=20&status=won",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "bets", "my-bets"],
+							"query": [
+								{"key": "page", "value": "1"},
+								{"key": "limit", "value": "20"},
+								{"key": "status", "value": "won", "description": "Filter by status: pending, won, lost"}
+							]
+						},
+						"description": "Get bet history for current user. Returns paginated list of bet slips. Can filter by status."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Bet Slip by Identifier",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/bets/slip/KX-20241201-ABC123",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "bets", "slip", "KX-20241201-ABC123"],
+							"variable": [
+								{
+									"key": "identifier",
+									"value": "KX-20241201-ABC123",
+									"description": "Slip ID (UUID) or barcode"
+								}
+							]
+						},
+						"description": "Get bet slip details by slip ID or barcode. Users can only view their own bet slips. Returns slip details, game info, and bet details."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Bet Slip Result",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/bets/result/KX-20241201-ABC123",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "bets", "result", "KX-20241201-ABC123"],
+							"variable": [
+								{
+									"key": "identifier",
+									"value": "KX-20241201-ABC123",
+									"description": "Slip ID (UUID) or barcode"
+								}
+							]
+						},
+						"description": "Get bet slip result by barcode/slip ID (read-only, does not claim). Returns slip status, winning status, payout amount, claim eligibility, and cancellation status. Identifier can be slip_id (UUID) or barcode (case-insensitive search). Returns 'cancelled' flag if slip has been cancelled. If slip is cancelled, can_claim will be false."
+					},
+					"response": []
+				},
+				{
+					"name": "Scan and Claim Winnings",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/bets/scan-and-claim/KX-20241201-ABC123",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "bets", "scan-and-claim", "KX-20241201-ABC123"],
+							"variable": [
+								{
+									"key": "identifier",
+									"value": "KX-20241201-ABC123",
+									"description": "Slip ID (UUID) or barcode"
+								}
+							]
+						},
+						"description": "Scan barcode and automatically claim winnings if eligible (all-in-one operation). If slip is winning and not claimed, automatically processes the claim, marks slip as claimed, and transfers winnings to user wallet. Returns slip details with updated claimed status and new balance. Prevents duplicate claims. Cannot be used for cancelled slips - returns error if slip has been cancelled."
+					},
+					"response": []
+				},
+				{
+					"name": "Cancel My Bet Slip",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"reason\": \"Change of mind\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/bets/cancel/KX-20241201-ABC123",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "bets", "cancel", "KX-20241201-ABC123"],
+							"variable": [
+								{
+									"key": "identifier",
+									"value": "KX-20241201-ABC123",
+									"description": "Slip ID (UUID) or barcode"
+								}
+							]
+						},
+						"description": "Cancel and refund a bet slip. Users can only cancel their own slips. Cannot cancel if slip already claimed or game already settled. Refunds total bet amount to user wallet and updates card totals (subtracts bet amounts from game card totals). Creates wallet log with game_id and cancellation reason. After cancellation, slip cannot be claimed. Body: { \"reason\": \"optional reason\" }"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Betting Statistics",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/bets/stats?date_from=2024-11-01&date_to=2024-11-30",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "bets", "stats"],
+							"query": [
+								{
+									"key": "date_from",
+									"value": "2024-11-01",
+									"description": "Start date (YYYY-MM-DD). Defaults to first day of current month. Only used when game_id is not provided."
+								},
+								{
+									"key": "date_to",
+									"value": "2024-11-30",
+									"description": "End date (YYYY-MM-DD). Defaults to today. Only used when game_id is not provided."
+								},
+								{
+									"key": "game_id",
+									"value": "",
+									"description": "Optional: Game ID (YYYYMMDDHHMM). If provided, returns detailed slip information for that specific game instead of summary statistics. Returns all bets placed by the logged-in user for that game with: game_id, game_start_datetime, game_end_datetime, number_of_cards, total_amount, total_winning_points, barcode, issue_date_time, status (cancelled or not), claim_status."
+								}
+							]
+						},
+						"description": "Get user betting statistics with daily breakdown OR detailed game-specific bets.\n\n**Without game_id**: Returns summary statistics with daily breakdown showing total bets placed (amounts), total winnings (amounts), net profit (amount), and slip counts (quantities) for the selected date range. Defaults to current month if dates not provided.\n\n**With game_id**: Returns detailed slip information for that specific game. Shows all bets placed by the logged-in user for that game with full details including game start/end times in YYYYMMDDHHMM format, number of cards selected, total bet amount, winning points, barcode, issue time, cancellation status, and claim status.\n\n**Amounts vs Quantities**:\n- total_bets_placed: AMOUNT (money)\n- total_winnings: AMOUNT (money)\n- net_profit: AMOUNT (money)\n- total_slips: QUANTITY (count)\n- winning_slips: QUANTITY (count)\n- losing_slips: QUANTITY (count)\n- pending_slips: QUANTITY (count)"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Daily Bets",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/bets/daily?date=2024-11-15",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "bets", "daily"],
+							"query": [
+								{
+									"key": "date",
+									"value": "2024-11-15",
+									"description": "Date (YYYY-MM-DD). Defaults to today if not provided."
+								}
+							]
+						},
+						"description": "Get all bets for logged-in user for a specific day with detailed information. Returns: game_id, game_full_start_time, game_full_end_time, game_status, game_settlement_status, winning_card, slip_id, barcode, barcode_issue_time, total_cards (number of cards selected), total_amount, payout_amount, profit, status, is_cancelled, claimed, claimed_at. Note: Individual card details are not included in response - only total_cards count."
+					},
+					"response": []
+				}
+			],
+			"description": "Betting endpoints. All endpoints require authentication. Place bets on active games, claim winnings, view bet history, cancel slips, and get betting statistics. Includes idempotency support and race condition protection."
+		},
+		{
+			"name": "⚙️ Admin Panel",
+			"item": [
+				{
+					"name": "Admin Dashboard",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{adminToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/admin/dashboard",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "admin", "dashboard"]
+						},
+						"description": "Get admin dashboard statistics including user counts, game statistics, and system overview."
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Users",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{adminToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/admin/users?page=1&limit=10&status=active",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "admin", "users"],
+							"query": [
+								{"key": "page", "value": "1"},
+								{"key": "limit", "value": "10"},
+								{"key": "status", "value": "active"}
+							]
+						},
+						"description": "List all users with pagination and filters. Filters: isActive, roles, department."
+					},
+					"response": []
+				},
+				{
+					"name": "Create New User",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{adminToken}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"userid\": \"player002\",\n  \"fname\": \"Jane\",\n  \"lname\": \"Smith\",\n  \"email\": \"jane.smith@example.com\",\n  \"mobileno\": \"9876543211\",\n  \"password\": \"password123\",\n  \"roleNames\": [\"Player\"],\n  \"department\": 1\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/admin/users",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "admin", "users"]
+						},
+						"description": "Create a new user account (Admin only)."
+					},
+					"response": []
+				},
+				{
+					"name": "Get User by ID",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{adminToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/admin/users/{{userId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "admin", "users", "{{userId}}"]
+						},
+						"description": "Get user details by ID (Admin only)."
+					},
+					"response": []
+				},
+				{
+					"name": "Update User",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{adminToken}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"fname\": \"John Updated\",\n  \"lname\": \"Doe Updated\",\n  \"status\": \"active\",\n  \"deposit_amount\": 1000.00\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/admin/users/{{userId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "admin", "users", "{{userId}}"]
+						},
+						"description": "Update user information (Admin only)."
+					},
+					"response": []
+				},
+				{
+					"name": "Change User Status",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{adminToken}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"status\": \"active\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/admin/users/{{userId}}/status",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "admin", "users", "{{userId}}", "status"]
+						},
+						"description": "Change user status: active, inactive, banned (Admin only)."
+					},
+					"response": []
+				},
+				{
+					"name": "Reset User Password",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{adminToken}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"newPassword\": \"newpassword123\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/admin/users/{{userId}}/reset-password",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "admin", "users", "{{userId}}", "reset-password"]
+						},
+						"description": "Reset user password (Admin only)."
+					},
+					"response": []
+				},
+				{
+					"name": "Kill User Sessions (Admin)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{adminToken}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/admin/users/{{userId}}/sessions/kill",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "admin", "users", "{{userId}}", "sessions", "kill"]
+						},
+						"description": "Kill all active sessions for a user (Admin only). Forces logout from all devices."
+					},
+					"response": []
+				},
+				{
+					"name": "Get User Active Sessions",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{adminToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/admin/users/{{userId}}/sessions/active",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "admin", "users", "{{userId}}", "sessions", "active"]
+						},
+						"description": "Get all active sessions for a user (Admin only)."
+					},
+					"response": []
+				},
+				{
+					"name": "Verify User Email",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{adminToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/admin/users/{{userId}}/verify-email",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "admin", "users", "{{userId}}", "verify-email"]
+						},
+						"description": "Verify user email (Admin only)."
+					},
+					"response": []
+				},
+				{
+					"name": "Verify User Mobile",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{adminToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/admin/users/{{userId}}/verify-mobile",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "admin", "users", "{{userId}}", "verify-mobile"]
+						},
+						"description": "Verify user mobile number (Admin only)."
+					},
+					"response": []
+				},
+				{
+					"name": "Get User Login History",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{adminToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/admin/users/{{userId}}/logins?page=1&limit=10",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "admin", "users", "{{userId}}", "logins"],
+							"query": [
+								{"key": "page", "value": "1"},
+								{"key": "limit", "value": "10"}
+							]
+						},
+						"description": "Get login history for a user (Admin only)."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Audit Logs",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{adminToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/admin/audit-logs?page=1&limit=10&action=user_login",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "admin", "audit-logs"],
+							"query": [
+								{"key": "page", "value": "1"},
+								{"key": "limit", "value": "10"},
+								{"key": "action", "value": "user_login"}
+							]
+						},
+						"description": "Get audit logs with filters (Admin only). Filters: action, user_id, date_from, date_to."
+					},
+					"response": []
+				}
+			],
+			"description": "Admin-only endpoints. Requires access token from account with Super Admin/Admin role. Includes dashboard, user management, and audit visibility."
+		},
+		{
+			"name": "⚙️ Settings Management",
+			"item": [
+				{
+					"name": "Get All Settings",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{adminToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/admin/settings",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "admin", "settings"]
+						},
+						"description": "Get all game settings (Admin only). Returns: game_multiplier, maximum_limit, game_start_time, game_end_time, game_result_type."
+					},
+					"response": []
+				},
+				{
+					"name": "Update Settings",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{adminToken}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"game_multiplier\": \"10\",\n  \"maximum_limit\": \"5000\",\n  \"game_start_time\": \"08:00\",\n  \"game_end_time\": \"22:00\",\n  \"game_result_type\": \"manual\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/admin/settings",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "admin", "settings"]
+						},
+						"description": "Update game settings (Admin only). All fields optional. game_result_type: 'manual' (admin declares) or 'auto' (random card). Updates are logged and cache is cleared."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Settings Logs",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{adminToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/admin/settings/logs?page=1&limit=20",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "admin", "settings", "logs"],
+							"query": [
+								{"key": "page", "value": "1"},
+								{"key": "limit", "value": "20"}
+							]
+						},
+						"description": "Get settings change history (Admin only). Returns paginated list of all settings changes with who made the change and when."
+					},
+					"response": []
+				}
+			],
+			"description": "Game settings management (Admin only). Configure game multiplier, betting limits, game times, and result type. Changes are logged for audit."
+		},
+		{
+			"name": "🛡️ Role Management",
+			"item": [
+				{
+					"name": "Create Role",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{adminToken}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"moderator\",\n  \"description\": \"Game moderator with limited admin access\",\n  \"permissions\": [1, 2, 3]\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/admin/roles",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "admin", "roles"]
+						},
+						"description": "Create a new role (Admin only)."
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Roles",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{adminToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/admin/roles",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "admin", "roles"]
+						},
+						"description": "Get all roles (Admin only)."
+					},
+					"response": []
+				},
+				{
+					"name": "Update Role",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{adminToken}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"description\": \"Updated moderator role with enhanced permissions\",\n  \"isActive\": true\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/admin/roles/1",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "admin", "roles", "1"]
+						},
+						"description": "Update role information (Admin only)."
+					},
+					"response": []
+				},
+				{
+					"name": "Assign Permissions to Role",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{adminToken}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"permission_ids\": [1, 2, 3, 4, 5]\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/admin/roles/1/permissions",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "admin", "roles", "1", "permissions"]
+						},
+						"description": "Assign permissions to a role (Admin only)."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Role Permissions",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{adminToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/admin/roles/1/permissions",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "admin", "roles", "1", "permissions"]
+						},
+						"description": "Get all permissions assigned to a role (Admin only)."
+					},
+					"response": []
+				},
+				{
+					"name": "Assign Roles to User",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{adminToken}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"role_ids\": [1, 2]\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/admin/users/{{userId}}/roles",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "admin", "users", "{{userId}}", "roles"]
+						},
+						"description": "Assign roles to a user (Admin only)."
+					},
+					"response": []
+				},
+				{
+					"name": "Get User Roles",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{adminToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/admin/users/{{userId}}/roles",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "admin", "users", "{{userId}}", "roles"]
+						},
+						"description": "Get all roles assigned to a user (Admin only)."
+					},
+					"response": []
+				}
+			],
+			"description": "Role-based access control (RBAC) management. Admin-only endpoints for managing roles, permissions, and role assignments."
+		},
+		{
+			"name": "🔑 Permission Management",
+			"item": [
+				{
+					"name": "Create Permission",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{adminToken}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"create_game\",\n  \"description\": \"Create new game sessions\",\n  \"resource\": \"game\",\n  \"action\": \"create\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/admin/permissions",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "admin", "permissions"]
+						},
+						"description": "Create a new permission (Admin only)."
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Permissions",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{adminToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/admin/permissions",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "admin", "permissions"]
+						},
+						"description": "Get all permissions (Admin only)."
+					},
+					"response": []
+				},
+				{
+					"name": "Update Permission",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{adminToken}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"description\": \"Updated permission for game management\",\n  \"isActive\": true\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/admin/permissions/1",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "admin", "permissions", "1"]
+						},
+						"description": "Update permission information (Admin only)."
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Permission",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{adminToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/admin/permissions/1",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "admin", "permissions", "1"]
+						},
+						"description": "Delete a permission (Admin only)."
+					},
+					"response": []
+				}
+			],
+			"description": "Permission management for RBAC system. Admin-only endpoints for creating and managing granular permissions."
+		},
+		{
+			"name": "📊 System & Health",
+			"item": [
+				{
+					"name": "Health Check",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/health",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "health"]
+						},
+						"description": "Health check endpoint. Public, no authentication required. Returns server status, timestamp, and API version."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Public Settings",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/settings/public",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "settings", "public"]
+						},
+						"description": "Get public game settings. Public endpoint - no authentication required but can also be accessed by logged-in users. Supports both GET and POST methods. Returns: game_multiplier (winning multiplier), maximum_limit (maximum bet amount per game), game_start_time (HH:MM format), game_end_time (HH:MM format). Note: Does not include game_result_type which is admin-only information."
+					},
+					"response": []
+				}
+			],
+			"description": "System health and monitoring endpoints. Public endpoints for checking API availability and game settings."
+		}
+	],
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "{{accessToken}}",
+				"type": "string"
+			}
+		]
+	},
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "https://kismatx-api.kismatx.workers.dev",
+			"type": "string",
+			"description": "Base URL for KismatX API. Change to http://localhost:5001 for Node.js local backend"
+		},
+		{
+			"key": "accessToken",
+			"value": "",
+			"type": "string",
+			"description": "JWT access token for authenticated requests"
+		},
+		{
+			"key": "refreshToken",
+			"value": "",
+			"type": "string",
+			"description": "JWT refresh token for token refresh"
+		},
+		{
+			"key": "userId",
+			"value": "",
+			"type": "string",
+			"description": "Current user ID (auto-set after login)"
+		},
+		{
+			"key": "adminToken",
+			"value": "",
+			"type": "string",
+			"description": "JWT access token for admin requests"
+		},
+		{
+			"key": "gameId",
+			"value": "202412011200",
+			"type": "string",
+			"description": "Game ID in format YYYYMMDDHHMM"
+		},
+		{
+			"key": "slipId",
+			"value": "",
+			"type": "string",
+			"description": "Bet slip ID (UUID)"
+		},
+		{
+			"key": "barcode",
+			"value": "KX-20241201-ABC123",
+			"type": "string",
+			"description": "Bet slip barcode (format: KX-YYYYMMDD-XXXXXX)"
+		}
+	]
+}

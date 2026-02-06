@@ -1,0 +1,2264 @@
+{
+	"info": {
+		"_postman_id": "kismatx-complete-2024",
+		"name": "KismatX API - Complete Collection",
+		"description": "# KismatX Gaming Platform API Collection\n\nComprehensive API collection for the KismatX card betting gaming platform.\n\n## 📋 Overview\n\nThis collection is organized into two main groups:\n\n### 🎮 **Game UI APIs**\nFor end-users of the gaming platform:\n- Authentication & Registration\n- User Profile & Wallet Management\n- Game Browsing & Betting\n- Betting History & Statistics\n- Transaction Management\n\n### 👑 **Admin Panel APIs**\nFor platform administrators:\n- Admin Dashboard & Analytics\n- User Management\n- Game Management & Settlement\n- Settings Configuration\n- Audit Logs & Monitoring\n\n## 🔑 Authentication\n\n1. **Login** using the appropriate endpoint (Player or Admin)\n2. **Access Token** is automatically saved to `{{accessToken}}` variable\n3. **Refresh Token** is saved to `{{refreshToken}}` variable\n4. All authenticated requests use: `Authorization: Bearer {{accessToken}}`\n\n## 🌐 Environment Variables\n\n- `baseUrl`: API base URL\n  - **Cloudflare Workers (Live):** `https://kismatx-api.kismatx.workers.dev`\n  - **Node.js (Local):** `http://localhost:5001`\n- `accessToken`: Current user's access token (auto-saved on login)\n- `refreshToken`: Refresh token for token renewal\n- `adminToken`: Admin user's access token\n- `userId`: Current logged-in user ID\n\n## 📝 Key Features\n\n### Game Flow\n1. Games run every 5 minutes automatically (08:00 AM - 11:00 PM IST)\n2. Game IDs follow format: YYYYMMDDHHMM (e.g., 202602061430)\n3. Players can bet on 1-12 cards per game\n4. Games settle automatically or manually by admin\n5. Winners claim prizes using barcode or slip ID\n\n### Betting System\n- **Place Bet**: Maximum 12 cards per slip\n- **Claim Winnings**: Use barcode or slip_id via scan-and-claim\n- **Cancel Slip**: Before game ends (users) or anytime (admins)\n- **Statistics**: Daily, monthly, or game-specific betting stats\n\n## 🌐 Live URLs\n- **API:** https://kismatx-api.kismatx.workers.dev\n- **Admin Panel:** https://kismatx-admin.pages.dev\n\n## 🔒 Security\n\n- JWT-based authentication\n- Role-based access control (RBAC)\n- Token expiration and refresh mechanism\n- Audit logging for all critical operations\n- Optimistic locking for race-safe claims\n\n---\n\n**Last Updated**: February 2026",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "🎮 Game UI APIs",
+			"description": "APIs for end-users of the gaming platform. Includes authentication, profile management, betting, and game browsing.",
+			"item": [
+				{
+					"name": "🔐 Authentication",
+					"description": "User authentication endpoints including registration, login, logout, and password management.",
+					"item": [
+						{
+							"name": "Register Player",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"if (pm.response.code === 201 || pm.response.code === 200) {",
+											"    const response = pm.response.json();",
+											"    if (response.accessToken) {",
+											"        pm.collectionVariables.set('accessToken', response.accessToken);",
+											"        pm.collectionVariables.set('refreshToken', response.refreshToken);",
+											"        console.log('✅ Registration successful! Tokens saved.');",
+											"    }",
+											"}"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"userid\": \"player001\",\n  \"password\": \"Player@123\",\n  \"email\": \"player001@kismatx.com\",\n  \"mobileno\": \"9876543210\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/auth/register",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "auth", "register"]
+								},
+								"description": "Register a new player account.\n\n**Request Body:**\n- `userid` (string, required): Unique user ID\n- `password` (string, required): Strong password\n- `email` (string, required): Valid email address\n- `mobileno` (string, required): 10-digit mobile number\n\n**Response:**\n- Returns user details with access token and refresh token"
+							},
+							"response": []
+						},
+						{
+							"name": "Login Player",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"if (pm.response.code === 200) {",
+											"    const response = pm.response.json();",
+											"    pm.collectionVariables.set('accessToken', response.accessToken);",
+											"    pm.collectionVariables.set('refreshToken', response.refreshToken);",
+											"    pm.collectionVariables.set('userId', response.user.id);",
+											"    console.log('✅ Login successful! Tokens saved.');",
+											"    console.log('User ID:', response.user.id);",
+											"    console.log('Balance:', response.user.deposit_amount);",
+											"}"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"userid\": \"player001\",\n  \"password\": \"Player@123\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/auth/login",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "auth", "login"]
+								},
+								"description": "Login with user credentials.\n\n**Request Body:**\n- `userid` (string): User ID or email\n- `password` (string): User password\n\n**Response:**\n- `accessToken`: JWT access token (15 minutes validity)\n- `refreshToken`: Refresh token for getting new access token\n- `user`: User details including balance, roles, etc.\n\n**Auto-saved Variables:**\n- `accessToken`\n- `refreshToken`\n- `userId`"
+							},
+							"response": []
+						},
+						{
+							"name": "Refresh Token",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"if (pm.response.code === 200) {",
+											"    const response = pm.response.json();",
+											"    pm.collectionVariables.set('accessToken', response.accessToken);",
+											"    console.log('✅ Token refreshed successfully!');",
+											"}"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{accessToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/auth/refresh-token",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "auth", "refresh-token"]
+								},
+								"description": "Get a new access token using refresh token.\n\n**Request Body:**\n- `refreshToken` (string): Valid refresh token\n\n**Response:**\n- New `accessToken`\n- Automatically saved to collection variables"
+							},
+							"response": []
+						},
+						{
+							"name": "Logout",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{accessToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/auth/logout",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "auth", "logout"]
+								},
+								"description": "Logout current user and invalidate tokens.\n\n**Headers:**\n- `Authorization: Bearer {{accessToken}}`\n\n**Response:**\n- Success message\n- Tokens are invalidated on server"
+							},
+							"response": []
+						},
+						{
+							"name": "Change Password",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{accessToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"currentPassword\": \"Player@123\",\n  \"newPassword\": \"NewPlayer@456\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/auth/change-password",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "auth", "change-password"]
+								},
+								"description": "Change user password (requires authentication).\n\n**Request Body:**\n- `currentPassword` (string): Current password\n- `newPassword` (string): New password\n\n**Response:**\n- Success message"
+							},
+							"response": []
+						},
+						{
+							"name": "Forgot Password",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"email\": \"player001@kismatx.com\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/auth/forgot-password",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "auth", "forgot-password"]
+								},
+								"description": "Request password reset link.\n\n**Request Body:**\n- `email` (string): Registered email address\n\n**Response:**\n- Reset token sent to email"
+							},
+							"response": []
+						},
+						{
+							"name": "Reset Password",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"token\": \"RESET_TOKEN_FROM_EMAIL\",\n  \"newPassword\": \"NewPassword@123\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/auth/reset-password",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "auth", "reset-password"]
+								},
+								"description": "Reset password using token from email.\n\n**Request Body:**\n- `token` (string): Reset token from email\n- `newPassword` (string): New password\n\n**Response:**\n- Success message"
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "👤 User Profile",
+					"description": "User profile management endpoints including viewing and updating profile information.",
+					"item": [
+						{
+							"name": "Get My Profile",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{accessToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/user/me",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "user", "me"]
+								},
+								"description": "Get current logged-in user details.\n\n**Headers:**\n- `Authorization: Bearer {{accessToken}}`\n\n**Response:**\n- Complete user profile including balance, roles, status"
+							},
+							"response": []
+						},
+						{
+							"name": "Get User Profile Details",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{accessToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/user/profile",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "user", "profile"]
+								},
+								"description": "Get detailed profile information.\n\n**Response:**\n- Full name, email, mobile, address\n- Profile photo URL\n- Account status and verification info"
+							},
+							"response": []
+						},
+						{
+							"name": "Update Profile",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{accessToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"full_name\": \"John Doe\",\n  \"email\": \"john.doe@kismatx.com\",\n  \"mobileno\": \"9876543210\",\n  \"address\": \"123 Main Street, City\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/user/profile",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "user", "profile"]
+								},
+								"description": "Update user profile information.\n\n**Request Body:**\n- `full_name` (string, optional)\n- `email` (string, optional)\n- `mobileno` (string, optional)\n- `address` (string, optional)\n\n**Response:**\n- Updated profile details"
+							},
+							"response": []
+						},
+						{
+							"name": "Get Wallet Info",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{accessToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/user/wallet-info",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "user", "wallet-info"]
+								},
+								"description": "Get user wallet balance and last transaction.\n\n**Response:**\n- Current balance\n- Last bet transaction details\n- Transaction timestamp"
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "🎲 Games",
+					"description": "Game browsing and information endpoints for players.",
+					"item": [
+						{
+							"name": "Get Current Active Game",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/games/current",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "games", "current"]
+								},
+								"description": "Get currently active game that accepts bets.\n\n**Response:**\n- Game ID (format: YYYYMMDDHHMM)\n- Start and end times\n- Game status\n- Card betting totals\n\n**Note:** Returns 404 if no active game. Games run every 5 minutes automatically."
+							},
+							"response": []
+						},
+						{
+							"name": "Get Game by ID",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/games/202511050040",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "games", "202511050040"]
+								},
+								"description": "Get specific game details by game ID.\n\n**Path Parameter:**\n- `gameId`: Game ID in format YYYYMMDDHHMM\n\n**Response:**\n- Complete game information\n- Winning card (if settled)\n- Card betting totals\n- Settlement status"
+							},
+							"response": []
+						},
+						{
+							"name": "Get Recent Winners",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/games/recent-winners",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "games", "recent-winners"]
+								},
+								"description": "Get last 10 settled games with winners.\n\n**Response:**\n- Array of recent games\n- Each game includes:\n  - Game ID and times\n  - Winning card\n  - Payout multiplier\n  - Total payout amount\n  - Number of winners"
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "📊 Game Stats",
+					"description": "Game statistics and winning card details for analyzing game results and betting patterns.",
+					"item": [
+						{
+							"name": "Get Games by Date (Winning Cards)",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/games/by-date?date=2025-11-05",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "games", "by-date"],
+									"query": [
+										{
+											"key": "date",
+											"value": "2025-11-05",
+											"description": "Date in YYYY-MM-DD format (e.g., 2025-11-05)"
+										}
+									]
+								},
+								"description": "Get all settled games for a specific date with winning card details (Public endpoint).\n\n**Query Parameter:**\n- `date` (required): Date in YYYY-MM-DD format\n\n**Response:**\n- `date`: Requested date\n- `total_games`: Number of settled games on that date\n- `games`: Array of games with:\n  - `game_id`: Game identifier (YYYYMMDDHHMM format)\n  - `game_start_time`: Game start time (YYYY-MM-DD HH:mm:ss)\n  - `game_end_time`: Game end time (YYYY-MM-DD HH:mm:ss)\n  - `winning_card`: Winning card number (1-12)\n  - `payout_multiplier`: Payout multiplier used\n  - `settlement_completed_at`: When the game was settled\n\n**Use Case:**\n- View all winning cards for a specific date\n- Analyze winning patterns\n- Historical game results\n- Date-wise game statistics\n\n**Note:** Only returns settled games with winning cards. Games are ordered by start time in descending order (latest first)."
+							},
+							"response": []
+						},
+						{
+							"name": "Get Betting Stats by Game ID",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{accessToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/bets/stats?game_id=202511050135",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "bets", "stats"],
+									"query": [
+										{
+											"key": "game_id",
+											"value": "202511050135",
+											"description": "Game ID (YYYYMMDDHHMM format) - Get all YOUR bets for that specific game"
+										}
+									]
+								},
+								"description": "Get all your bets for a specific game with detailed information.\n\n**Query Parameter:**\n- `game_id` (required): Game ID in YYYYMMDDHHMM format\n\n**Response:**\n- `game_id`: Game identifier\n- `game_start_datetime`: Game start time (YYYYMMDDHHMM format)\n- `game_end_datetime`: Game end time (YYYYMMDDHHMM format)\n- `total_slips`: Number of bets you placed in that game\n- `slips`: Array of all your bets with:\n  - `number_of_cards`: Cards selected per slip\n  - `total_amount`: Bet amount\n  - `total_winning_points`: Payout amount (if won)\n  - `barcode`: Bet slip barcode\n  - `issue_date_time`: Barcode issue time (YYYY-MM-DD HH:mm:ss)\n  - `status`: Slip status (pending/won/lost/cancelled)\n  - `is_cancelled`: Cancellation status\n  - `claim_status`: Whether winnings were claimed\n  - `claimed_at`: Claim timestamp (if claimed)\n\n**Use Case:**\n- View all your bets for a specific game\n- Track bet timings and barcode issue times\n- Check claim status and winnings\n- Analyze your betting performance for a game"
+							},
+							"response": []
+						},
+						{
+							"name": "Get Betting Stats by Date Range",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{accessToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/bets/stats?date_from=2024-11-01&date_to=2025-11-05",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "bets", "stats"],
+									"query": [
+										{
+											"key": "date_from",
+											"value": "2024-11-01",
+											"description": "Start date (YYYY-MM-DD format, default: first day of current month)"
+										},
+										{
+											"key": "date_to",
+											"value": "2025-11-05",
+											"description": "End date (YYYY-MM-DD format, default: today)"
+										}
+									]
+								},
+								"description": "Get betting statistics with daily breakdown for a date range.\n\n**Query Parameters:**\n- `date_from` (string): Start date in YYYY-MM-DD format (default: first day of current month)\n- `date_to` (string): End date in YYYY-MM-DD format (default: today)\n\n**Response:**\n- `summary`: Overall statistics\n  - `total_bets_placed`: Total amount bet (money)\n  - `total_winnings`: Total winnings (money)\n  - `net_profit`: Net profit/loss (money)\n  - `total_slips`: Total number of bet slips (quantity)\n  - `winning_slips`: Number of winning slips (quantity)\n  - `losing_slips`: Number of losing slips (quantity)\n  - `pending_slips`: Number of pending slips (quantity)\n- `daily_breakdown`: Array of daily statistics\n  - `date`: Date (YYYY-MM-DD)\n  - `bets_placed`: Amount bet on that day (money)\n  - `winnings`: Winnings on that day (money)\n  - `net_profit`: Net profit/loss for that day (money)\n  - `total_slips`: Number of slips on that day (quantity)\n  - `winning_slips`: Number of winning slips (quantity)\n  - `losing_slips`: Number of losing slips (quantity)\n  - `pending_slips`: Number of pending slips (quantity)\n\n**Use Case:**\n- View betting performance over a date range\n- Analyze daily betting patterns\n- Track profits and losses\n- Monthly/weekly statistics\n\n**Note:** Amounts (total_bets_placed, winnings, profit) are in money values. Quantities (total_slips, winning_slips, etc.) are counts."
+							},
+							"response": []
+						},
+						{
+							"name": "Get Previous Games by Date (User Bets)",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{accessToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/games/previousgames/by-date?date=2025-11-05",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "games", "previousgames", "by-date"],
+									"query": [
+										{
+											"key": "date",
+											"value": "2025-11-05",
+											"description": "Date in YYYY-MM-DD format (e.g., 2025-11-05)"
+										}
+									]
+								},
+								"description": "Get all games for a specific date with your bet slips and detailed information.\n\n**Query Parameter:**\n- `date` (required): Date in YYYY-MM-DD format\n\n**Authentication:**\n- Required (Bearer token)\n- Returns only games where you have placed bets\n\n**Response:**\n- `game_date`: Requested date\n- `games`: Array of games with your bet slips:\n  - `id`: Game ID (YYYYMMDDHHMM format)\n  - `start`: Game start time (YYYY-MM-DD HH:MM format)\n  - `end`: Game end time (YYYY-MM-DD HH:MM format)\n  - `slips`: Array of your bet slips for this game:\n    - `cards`: Number of cards bet\n    - `amount`: Total bet amount\n    - `win_points`: Payout amount (if won)\n    - `barcode`: Bet slip barcode\n    - `issue_date_time`: Barcode issue time (YYYY-MM-DD HH:mm:ss)\n    - `status`: Slip status (won/lost/pending/cancelled)\n    - `is_cancelled`: Cancellation status (boolean)\n    - `claim_status`: Whether winnings were claimed (boolean)\n    - `claimed_at`: Claim timestamp (YYYY-MM-DD HH:mm:ss or null)\n\n**Use Case:**\n- View all your bets for a specific date\n- Track betting history by date\n- Review win/loss statistics\n- Check claim status for all slips on a date\n- Analyze betting patterns for a specific day\n\n**Note:** Only returns games where you have placed at least one bet. Games are ordered by start time (oldest first)."
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "🎰 Betting",
+					"description": "Betting operations including placing bets, claiming winnings, and viewing bet history.",
+					"item": [
+						{
+							"name": "Place Bet",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"if (pm.response.code === 201) {",
+											"    const response = pm.response.json();",
+											"    pm.collectionVariables.set('lastSlipId', response.data.slip_id);",
+											"    pm.collectionVariables.set('lastBarcode', response.data.barcode);",
+											"    console.log('✅ Bet placed successfully!');",
+											"    console.log('Slip ID:', response.data.slip_id);",
+											"    console.log('Barcode:', response.data.barcode);",
+											"    console.log('New Balance:', response.data.new_balance);",
+											"}"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{accessToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									},
+									{
+										"key": "X-Idempotency-Key",
+										"value": "{{$guid}}",
+										"description": "Prevents duplicate bet placement"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"game_id\": \"202511050040\",\n  \"bets\": [\n    {\n      \"card_number\": 1,\n      \"bet_amount\": 50\n    },\n    {\n      \"card_number\": 5,\n      \"bet_amount\": 100\n    },\n    {\n      \"card_number\": 12,\n      \"bet_amount\": 75\n    }\n  ]\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/bets/place",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "bets", "place"]
+								},
+								"description": "Place a bet on the current active game.\n\n**Request Body:**\n- `game_id` (string): Game ID (YYYYMMDDHHMM format)\n- `bets` (array): Array of bet objects\n  - `card_number` (integer): Card number (1-12)\n  - `bet_amount` (number): Amount to bet (min: 1, max: maximum_limit setting)\n\n**Headers:**\n- `X-Idempotency-Key`: Optional UUID for preventing duplicate bets\n\n**Response:**\n- `slip_id`: Unique bet slip identifier\n- `barcode`: Secure barcode for claiming\n- `total_amount`: Total bet amount\n- `new_balance`: Updated user balance\n- `bets`: Array of placed bets\n\n**Constraints:**\n- Maximum 12 cards per slip\n- Each card can be bet only once per slip\n- Must have sufficient balance\n- Game must be active\n\n**Auto-saved Variables:**\n- `lastSlipId`\n- `lastBarcode`"
+							},
+							"response": []
+						},
+						{
+							"name": "Get Bet Slip Details",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{accessToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/bets/slip/{{lastSlipId}}",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "bets", "slip", "{{lastSlipId}}"]
+								},
+								"description": "Get bet slip details by slip_id or barcode.\n\n**Path Parameter:**\n- `identifier`: slip_id or barcode\n\n**Response:**\n- Complete slip information\n- All bets placed on the slip\n- Game details\n- Status (pending, won, lost)\n- Claim status\n\n**Access Control:**\n- Users can view only their own slips\n- Admins can view any slip"
+							},
+							"response": []
+						},
+						{
+							"name": "Get Bet Slip Result (Read-only)",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/bets/result/{{lastBarcode}}",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "bets", "result", "{{lastBarcode}}"]
+								},
+								"description": "Check bet slip result without claiming (read-only operation).\n\n**Path Parameter:**\n- `identifier`: slip_id or barcode\n\n**Response:**\n- Slip details and status\n- Can claim flag\n- Payout amount (if won)\n- Cancellation status\n\n**Note:** This does NOT claim winnings. Use for checking results only."
+							},
+							"response": []
+						},
+						{
+							"name": "Claim Winnings",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{accessToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"identifier\": \"{{lastBarcode}}\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/bets/claim",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "bets", "claim"]
+								},
+								"description": "Claim winnings for a winning bet slip.\n\n**Request Body:**\n- `identifier` (string): slip_id or barcode\n\n**Response:**\n- Claimed amount\n- New wallet balance\n- Slip and game details\n\n**Requirements:**\n- Slip must be in 'won' status\n- Game must be settled\n- Slip must not be already claimed\n- User must own the slip\n\n**Note:** Winnings are credited to wallet immediately"
+							},
+							"response": []
+						},
+						{
+							"name": "Scan Barcode & Auto Claim",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{accessToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/bets/scan-and-claim/{{lastBarcode}}",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "bets", "scan-and-claim", "{{lastBarcode}}"]
+								},
+								"description": "All-in-one endpoint: Scan barcode and automatically claim if winning.\n\n**Path Parameter:**\n- `identifier`: slip_id or barcode\n\n**Response:**\n- If winning and unclaimed: Claims automatically\n- If already claimed: Returns slip info\n- If not winning: Returns current status\n\n**Use Case:**\n- Perfect for barcode scanner integration\n- Single operation to check and claim"
+							},
+							"response": []
+						},
+						{
+							"name": "Cancel Bet Slip (User)",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{accessToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"reason\": \"Changed my mind\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/bets/cancel/{{lastSlipId}}",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "bets", "cancel", "{{lastSlipId}}"]
+								},
+								"description": "Cancel own bet slip and get refund.\n\n**Path Parameter:**\n- `identifier`: slip_id or barcode\n\n**Request Body:**\n- `reason` (string, optional): Cancellation reason\n\n**Response:**\n- Refund amount\n- New balance\n- Slip details\n\n**Restrictions:**\n- Can only cancel own slips\n- Cannot cancel after game ends\n- Cannot cancel already claimed slips\n- Full refund provided"
+							},
+							"response": []
+						},
+						{
+							"name": "Get My Bet History",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{accessToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/bets/my-bets?page=1&limit=20&status=won",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "bets", "my-bets"],
+									"query": [
+										{
+											"key": "page",
+											"value": "1",
+											"description": "Page number (default: 1)"
+										},
+										{
+											"key": "limit",
+											"value": "20",
+											"description": "Items per page (default: 20)"
+										},
+										{
+											"key": "status",
+											"value": "won",
+											"description": "Filter by status: pending, won, lost (optional)"
+										}
+									]
+								},
+								"description": "Get paginated betting history for current user.\n\n**Query Parameters:**\n- `page` (integer): Page number (default: 1)\n- `limit` (integer): Items per page (default: 20)\n- `status` (string): Filter by status (optional)\n  - `pending`: Bets on active/upcoming games\n  - `won`: Winning bets\n  - `lost`: Losing bets\n\n**Response:**\n- Array of bet slips\n- Pagination info (total, pages, hasNext, hasPrev)"
+							},
+							"response": []
+						},
+						{
+							"name": "Get Betting Statistics",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{accessToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/bets/stats?date_from=2024-11-01&date_to=2024-11-05",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "bets", "stats"],
+									"query": [
+										{
+											"key": "date_from",
+											"value": "2024-11-01",
+											"description": "Start date (YYYY-MM-DD, default: first day of current month)"
+										},
+										{
+											"key": "date_to",
+											"value": "2024-11-05",
+											"description": "End date (YYYY-MM-DD, default: today)"
+										},
+										{
+											"key": "game_id",
+											"value": "202511050040",
+											"description": "Specific game ID (YYYYMMDDHHMM) - Get all bets for that game. Returns: game_id, game_start_datetime, game_end_datetime, number_of_cards, total_amount, total_winning_points, barcode, issue_date_time, status, is_cancelled, claim_status"
+										}
+									]
+								},
+								"description": "Get betting statistics with daily breakdown OR detailed game-specific bets.\n\n**Query Parameters:**\n- `date_from` (string): Start date in YYYY-MM-DD format (used when game_id not provided)\n- `date_to` (string): End date in YYYY-MM-DD format (used when game_id not provided)\n- `game_id` (string): Get all YOUR bets for specific game (YYYYMMDDHHMM format)\n\n**Response (Date Range - without game_id):**\n- Summary: total bets placed, total winnings, net profit\n- Daily breakdown with win/loss counts\n\n**Response (Game ID - with game_id parameter):**\n- `game_id`: Game identifier\n- `game_start_datetime`: Game start time (YYYYMMDDHHMM format)\n- `game_end_datetime`: Game end time (YYYYMMDDHHMM format)\n- `total_slips`: Number of bets placed in that game\n- `slips`: Array of all your bets with:\n  - `number_of_cards`: Cards selected per slip\n  - `total_amount`: Bet amount\n  - `total_winning_points`: Payout amount (if won)\n  - `barcode`: Bet slip barcode\n  - `issue_date_time`: Barcode issue time (YYYY-MM-DD HH:mm:ss)\n  - `status`: Slip status (pending/won/lost/cancelled)\n  - `is_cancelled`: Cancellation status\n  - `claim_status`: Whether winnings were claimed\n  - `claimed_at`: Claim timestamp (if claimed)\n\n**Use Case:**\n- View all your bets for a specific game\n- Track bet timings and barcode issue times\n- Check claim status and winnings"
+							},
+							"response": []
+						},
+						{
+							"name": "Get Daily Bets",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{accessToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/bets/daily?date=2024-11-05",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "bets", "daily"],
+									"query": [
+										{
+											"key": "date",
+											"value": "2024-11-05",
+											"description": "Date in YYYY-MM-DD format (default: today)"
+										}
+									]
+								},
+								"description": "Get detailed bets for a specific day.\n\n**Query Parameters:**\n- `date` (string): Date in YYYY-MM-DD (default: today)\n\n**Response:**\n- Array of bets with:\n  - Game details\n  - Slip information\n  - Profit/loss calculation\n  - Cancellation status"
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "💰 Wallet",
+					"description": "Wallet and transaction management for users.",
+					"item": [
+						{
+							"name": "Get My Wallet Transactions",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{accessToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/wallet/{{userId}}?page=1&limit=20&transaction_type=game",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "wallet", "{{userId}}"],
+									"query": [
+										{
+											"key": "page",
+											"value": "1",
+											"description": "Page number"
+										},
+										{
+											"key": "limit",
+											"value": "20",
+											"description": "Items per page"
+										},
+										{
+											"key": "transaction_type",
+											"value": "game",
+											"description": "Filter: recharge, withdrawal, game",
+											"disabled": true
+										},
+										{
+											"key": "transaction_direction",
+											"value": "debit",
+											"description": "Filter: credit, debit",
+											"disabled": true
+										}
+									]
+								},
+								"description": "Get user's wallet transaction history.\n\n**Path Parameter:**\n- `user_id`: User ID (must be own ID unless admin)\n\n**Query Parameters:**\n- `page`: Page number\n- `limit`: Items per page\n- `transaction_type`: recharge, withdrawal, game\n- `transaction_direction`: credit, debit\n- `date_from`: Start date (YYYY-MM-DD)\n- `date_to`: End date (YYYY-MM-DD)\n\n**Response:**\n- Paginated transaction list\n- Each transaction includes:\n  - Type and direction\n  - Amount\n  - Reference (slip_id, game_id)\n  - Timestamp"
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "⚙️ Settings",
+					"description": "Public settings accessible to all users.",
+					"item": [
+						{
+							"name": "Get Public Settings",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/settings/public",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "settings", "public"]
+								},
+								"description": "Get public game settings (no authentication required).\n\n**Response:**\n- `maximum_limit`: Maximum bet amount per card\n- `payout_multiplier`: Winning payout multiplier\n- `game_result_type`: auto or manual\n- `game_duration`: Game duration in minutes\n\n**Note:** Public endpoint, no authentication required"
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "❤️ Health Check",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/health",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "health"]
+						},
+						"description": "Check API server health status.\n\n**Response:**\n- Server status\n- Timestamp\n- Version\n- Available endpoints"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "👑 Admin Panel APIs",
+			"description": "APIs for platform administrators. Includes user management, game settlement, settings configuration, and monitoring.",
+			"item": [
+				{
+					"name": "🔐 Admin Authentication",
+					"description": "Admin login and authentication.",
+					"item": [
+						{
+							"name": "Login Admin",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"if (pm.response.code === 200) {",
+											"    const response = pm.response.json();",
+											"    pm.collectionVariables.set('adminToken', response.accessToken);",
+											"    pm.collectionVariables.set('accessToken', response.accessToken);",
+											"    pm.collectionVariables.set('refreshToken', response.refreshToken);",
+											"    console.log('✅ Admin login successful!');",
+											"    console.log('Admin ID:', response.user.id);",
+											"}"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"userid\": \"admin\",\n  \"password\": \"Admin@123\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/auth/login",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "auth", "login"]
+								},
+								"description": "Login as administrator.\n\n**Request Body:**\n- `userid`: Admin user ID\n- `password`: Admin password\n\n**Response:**\n- Access and refresh tokens\n- Admin user details with roles\n\n**Auto-saved:**\n- `adminToken`\n- `accessToken`"
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "📊 Dashboard",
+					"description": "Admin dashboard statistics and analytics.",
+					"item": [
+						{
+							"name": "Get Admin Dashboard",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{adminToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/dashboard",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "admin", "dashboard"]
+								},
+								"description": "Get admin dashboard statistics.\n\n**Response:**\n- Total users count\n- Active users\n- Total games\n- Revenue statistics\n- Recent activities\n- Pending actions\n\n**Access:** Admin only"
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "👥 User Management",
+					"description": "Complete user management operations for administrators.",
+					"item": [
+						{
+							"name": "Get All Users",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{adminToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/users?page=1&limit=20&status=active&search=player",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "admin", "users"],
+									"query": [
+										{
+											"key": "page",
+											"value": "1"
+										},
+										{
+											"key": "limit",
+											"value": "20"
+										},
+										{
+											"key": "status",
+											"value": "active",
+											"description": "Filter: active, inactive, suspended",
+											"disabled": true
+										},
+										{
+											"key": "search",
+											"value": "player",
+											"description": "Search by userid, email, mobile",
+											"disabled": true
+										}
+									]
+								},
+								"description": "Get paginated list of all users.\n\n**Query Parameters:**\n- `page`: Page number\n- `limit`: Items per page\n- `status`: Filter by status\n- `search`: Search query\n- `sort_by`: Field to sort by\n- `sort_order`: asc or desc\n\n**Response:**\n- Paginated user list\n- User details with balance and status"
+							},
+							"response": []
+						},
+						{
+							"name": "Get User by ID",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{adminToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/users/5",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "admin", "users", "5"]
+								},
+								"description": "Get detailed information for specific user.\n\n**Path Parameter:**\n- `id`: User ID\n\n**Response:**\n- Complete user profile\n- Wallet balance\n- Roles and permissions\n- Account status"
+							},
+							"response": []
+						},
+						{
+							"name": "Create User",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{adminToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"userid\": \"newplayer\",\n  \"password\": \"Player@123\",\n  \"email\": \"newplayer@kismatx.com\",\n  \"mobileno\": \"9876543210\",\n  \"full_name\": \"New Player\",\n  \"user_type\": \"player\",\n  \"deposit_amount\": 1000\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/users",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "admin", "users"]
+								},
+								"description": "Create a new user account (admin only).\n\n**Request Body:**\n- `userid` (required): Unique user ID\n- `password` (required): User password\n- `email` (required): Email address\n- `mobileno` (required): Mobile number\n- `full_name`: Full name\n- `user_type`: player or admin\n- `deposit_amount`: Initial balance\n\n**Response:**\n- Created user details"
+							},
+							"response": []
+						},
+						{
+							"name": "Update User",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{adminToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"full_name\": \"Updated Name\",\n  \"email\": \"updated@kismatx.com\",\n  \"mobileno\": \"9998887770\",\n  \"status\": \"active\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/users/5",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "admin", "users", "5"]
+								},
+								"description": "Update user information.\n\n**Path Parameter:**\n- `id`: User ID\n\n**Request Body (all optional):**\n- `full_name`: Full name\n- `email`: Email address\n- `mobileno`: Mobile number\n- `status`: Account status\n- `deposit_amount`: Wallet balance\n\n**Response:**\n- Updated user details"
+							},
+							"response": []
+						},
+						{
+							"name": "Delete User",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{adminToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/users/10",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "admin", "users", "10"]
+								},
+								"description": "Delete user account permanently.\n\n**Path Parameter:**\n- `id`: User ID\n\n**Response:**\n- Success message\n\n**Warning:** This is permanent and cannot be undone!"
+							},
+							"response": []
+						},
+						{
+							"name": "Change User Status",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{adminToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"status\": \"suspended\",\n  \"reason\": \"Suspicious activity detected\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/users/5/status",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "admin", "users", "5", "status"]
+								},
+								"description": "Change user account status.\n\n**Request Body:**\n- `status`: active, inactive, suspended\n- `reason`: Reason for status change\n\n**Response:**\n- Updated user with new status"
+							},
+							"response": []
+						},
+						{
+							"name": "Reset User Password",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{adminToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"newPassword\": \"NewPassword@123\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/users/5/reset-password",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "admin", "users", "5", "reset-password"]
+								},
+								"description": "Reset user password (admin privilege).\n\n**Request Body:**\n- `newPassword`: New password for user\n\n**Response:**\n- Success message"
+							},
+							"response": []
+						},
+						{
+							"name": "Verify User Email",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{adminToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "PUT",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/users/5/verify-email",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "admin", "users", "5", "verify-email"]
+								},
+								"description": "Manually verify user's email (admin override).\n\n**Response:**\n- User with email_verified = true"
+							},
+							"response": []
+						},
+						{
+							"name": "Verify User Mobile",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{adminToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "PUT",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/users/5/verify-mobile",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "admin", "users", "5", "verify-mobile"]
+								},
+								"description": "Manually verify user's mobile (admin override).\n\n**Response:**\n- User with mobile_verified = true"
+							},
+							"response": []
+						},
+						{
+							"name": "Get User Login History",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{adminToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/users/5/logins?limit=50",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "admin", "users", "5", "logins"],
+									"query": [
+										{
+											"key": "limit",
+											"value": "50"
+										}
+									]
+								},
+								"description": "Get user's login history.\n\n**Query Parameters:**\n- `limit`: Number of records\n\n**Response:**\n- Array of login records\n- IP addresses, timestamps, status"
+							},
+							"response": []
+						},
+						{
+							"name": "Get User Active Sessions",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{adminToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/users/5/sessions/active",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "admin", "users", "5", "sessions", "active"]
+								},
+								"description": "Get all active sessions for a user.\n\n**Response:**\n- Array of active refresh tokens\n- Creation time and expiry"
+							},
+							"response": []
+						},
+						{
+							"name": "Kill User Sessions",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{adminToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/users/5/sessions/kill",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "admin", "users", "5", "sessions", "kill"]
+								},
+								"description": "Force logout user by killing all their sessions.\n\n**Response:**\n- Number of sessions terminated\n\n**Use Case:**\n- Security breach\n- Account suspension\n- Force password reset"
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "🎮 Game Management",
+					"description": "Game creation, settlement, and monitoring for administrators.",
+					"item": [
+						{
+							"name": "Get All Games (Admin)",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{adminToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/games?page=1&limit=20&status=settled&sort_by=created_at&sort_order=desc",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "admin", "games"],
+									"query": [
+										{
+											"key": "page",
+											"value": "1"
+										},
+										{
+											"key": "limit",
+											"value": "20"
+										},
+										{
+											"key": "status",
+											"value": "settled",
+											"description": "Filter: active, completed, settled"
+										},
+										{
+											"key": "sort_by",
+											"value": "created_at"
+										},
+										{
+											"key": "sort_order",
+											"value": "desc"
+										}
+									]
+								},
+								"description": "Get paginated list of all games with admin details.\n\n**Query Parameters:**\n- `page`: Page number\n- `limit`: Items per page\n- `status`: Filter by game status\n- `settlement_status`: not_settled, settling, settled, failed\n- `date_from`: Start date\n- `date_to`: End date\n- `sort_by`: Field to sort\n- `sort_order`: asc or desc\n\n**Response:**\n- Detailed game list\n- Settlement information\n- Betting totals\n- Payout amounts"
+							},
+							"response": []
+						},
+						{
+							"name": "Get Live Settlement Dashboard",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{adminToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/games/live-settlement",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "admin", "games", "live-settlement"]
+								},
+								"description": "Get real-time settlement dashboard data.\n\n**Response:**\n- Current game information\n- All 12 cards with betting totals\n- Payout calculations for each card\n- Time remaining for settlement\n- Settlement eligibility status\n\n**Use Case:**\n- Live monitoring during game\n- Pre-settlement analysis\n- Manual settlement decision making\n\n**Note:** This endpoint is polled frequently by admin frontend"
+							},
+							"response": []
+						},
+						{
+							"name": "Get Game Statistics",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{adminToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/games/202511050040/stats",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "admin", "games", "202511050040", "stats"]
+								},
+								"description": "Get detailed statistics for a specific game.\n\n**Path Parameter:**\n- `gameId`: Game ID (YYYYMMDDHHMM)\n\n**Response:**\n- Total bets count\n- Total bet amount\n- Unique players\n- Card-wise betting distribution\n- Settlement status"
+							},
+							"response": []
+						},
+						{
+							"name": "Get Game Bets",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{adminToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/games/202511050040/bets?page=1&limit=50",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "admin", "games", "202511050040", "bets"],
+									"query": [
+										{
+											"key": "page",
+											"value": "1"
+										},
+										{
+											"key": "limit",
+											"value": "50"
+										}
+									]
+								},
+								"description": "Get all bet slips for a specific game (Admin only).\n\n**Path Parameter:**\n- `gameId`: Game ID (YYYYMMDDHHMM format)\n\n**Query Parameters:**\n- `page`: Page number (default: 1)\n- `limit`: Items per page (default: 50)\n- `status`: Filter by slip status (optional)\n\n**Response:**\n- Paginated array of bet slips with:\n  - `slip_id`: Unique slip identifier\n  - `barcode`: Bet slip barcode\n  - `created_at`: Barcode issue time (YYYY-MM-DD HH:mm:ss)\n  - `status`: Slip status (pending/won/lost)\n  - `claimed`: Whether winnings were claimed\n  - `claimed_at`: Claim timestamp (if claimed)\n  - `total_amount`: Total bet amount\n  - `payout_amount`: Winning payout amount\n  - `user`: User information (id, user_id, name)\n  - `bets`: Array of bet details (card_number, bet_amount, is_winner, payout_amount)\n\n**Use Case:**\n- View all bets placed in a game\n- Track bet timings and status\n- Analyze game betting patterns\n- Settlement verification"
+							},
+							"response": []
+						},
+						{
+							"name": "Get Settlement Decision Data",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{adminToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/games/202511050040/settlement-decision",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "admin", "games", "202511050040", "settlement-decision"]
+								},
+								"description": "Get data for making settlement decision.\n\n**Path Parameter:**\n- `gameId`: Game ID\n\n**Response:**\n- All 12 cards with:\n  - Total bets on each card\n  - Expected payout if card wins\n  - Profit/loss for house\n  - Recommendation (lowest payout)\n\n**Use Case:**\n- Manual settlement decision\n- Analyzing game profitability"
+							},
+							"response": []
+						},
+						{
+							"name": "Settle Game (Declare Winner)",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{adminToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"winning_card\": 7\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/games/202511050040/settle",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "admin", "games", "202511050040", "settle"]
+								},
+								"description": "Settle a game by declaring the winning card.\n\n**Path Parameter:**\n- `gameId`: Game ID to settle\n\n**Request Body:**\n- `winning_card` (integer): Winning card number (1-12)\n\n**Process:**\n1. Validates game is settleable\n2. Calculates payouts for all bets\n3. Updates bet slip statuses (won/lost)\n4. Credits winnings (available for claim)\n5. Marks game as settled\n\n**Response:**\n- Settlement summary\n- Total payout amount\n- Number of winning/losing slips\n- Payout multiplier\n\n**Note:** This is irreversible!"
+							},
+							"response": []
+						},
+						{
+							"name": "Get Settlement Report",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{adminToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/games/202511050040/settlement-report",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "admin", "games", "202511050040", "settlement-report"]
+								},
+								"description": "Get detailed settlement report for a game.\n\n**Path Parameter:**\n- `gameId`: Game ID\n\n**Response:**\n- Game details\n- Winning card\n- Total bets and payouts\n- Winner list\n- Settlement timestamp\n\n**Requirement:**\n- Game must be settled"
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "🎫 Slip Management",
+					"description": "Admin operations for bet slip management.",
+					"item": [
+						{
+							"name": "Cancel Any Slip (Admin)",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{adminToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"reason\": \"Cancelled by admin: System error\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/slips/SLIP_ID_OR_BARCODE/cancel",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "admin", "slips", "SLIP_ID_OR_BARCODE", "cancel"]
+								},
+								"description": "Cancel any bet slip and provide refund (admin privilege).\n\n**Path Parameter:**\n- `identifier`: slip_id or barcode\n\n**Request Body:**\n- `reason` (optional): Reason for cancellation\n\n**Admin Privileges:**\n- Can cancel any user's slip\n- Can cancel even after game starts\n- Full refund provided\n\n**Response:**\n- Refund amount\n- Updated user balance\n- Cancellation reason"
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "💰 Wallet Management",
+					"description": "Admin wallet operations and transaction management.",
+					"item": [
+						{
+							"name": "Get All Wallet Logs",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{adminToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/wallet/logs?page=1&limit=50&transaction_type=game&user_id=5",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "wallet", "logs"],
+									"query": [
+										{
+											"key": "page",
+											"value": "1"
+										},
+										{
+											"key": "limit",
+											"value": "50"
+										},
+										{
+											"key": "transaction_type",
+											"value": "game",
+											"description": "recharge, withdrawal, game"
+										},
+										{
+											"key": "user_id",
+											"value": "5",
+											"description": "Filter by user"
+										},
+										{
+											"key": "transaction_direction",
+											"value": "debit",
+											"description": "credit, debit",
+											"disabled": true
+										},
+										{
+											"key": "reference_type",
+											"value": "bet_placement",
+											"description": "bet_placement, claim, cancellation",
+											"disabled": true
+										}
+									]
+								},
+								"description": "Get all wallet transaction logs (admin only).\n\n**Query Parameters:**\n- `page`: Page number\n- `limit`: Items per page\n- `user_id`: Filter by user\n- `transaction_type`: recharge, withdrawal, game\n- `transaction_direction`: credit, debit\n- `reference_type`: bet_placement, settlement, claim, cancellation\n- `date_from`: Start date\n- `date_to`: End date\n\n**Response:**\n- Paginated transaction logs\n- User details\n- Reference information"
+							},
+							"response": []
+						},
+						{
+							"name": "Get User Wallet Summary",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{adminToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/wallet/summary/5",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "wallet", "summary", "5"]
+								},
+								"description": "Get wallet summary for a specific user.\n\n**Path Parameter:**\n- `user_id`: User ID\n\n**Response:**\n- Current balance\n- Total credits\n- Total debits\n- Transaction counts by type"
+							},
+							"response": []
+						},
+						{
+							"name": "Create Transaction (Recharge/Withdraw)",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{adminToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"user_id\": 5,\n  \"transaction_type\": \"recharge\",\n  \"amount\": 500,\n  \"comment\": \"Manual recharge by admin\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/wallet/transaction",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "wallet", "transaction"]
+								},
+								"description": "Create a wallet transaction (admin only).\n\n**Request Body:**\n- `user_id` (integer): User ID\n- `transaction_type` (string): recharge or withdrawal\n- `amount` (number): Transaction amount\n- `comment` (string, optional): Transaction note\n\n**Process:**\n- Recharge: Credits user wallet\n- Withdrawal: Debits user wallet\n\n**Response:**\n- Transaction details\n- Updated balance"
+							},
+							"response": []
+						},
+						{
+							"name": "Update Transaction",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{adminToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"status\": \"completed\",\n  \"comment\": \"Updated by admin\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/wallet/transaction/123",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "wallet", "transaction", "123"]
+								},
+								"description": "Update transaction details (admin only).\n\n**Path Parameter:**\n- `id`: Transaction ID\n\n**Request Body:**\n- `status`: pending, completed, failed\n- `comment`: Update note\n\n**Response:**\n- Updated transaction"
+							},
+							"response": []
+						},
+						{
+							"name": "Delete Transaction",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{adminToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/wallet/transaction/123",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "wallet", "transaction", "123"]
+								},
+								"description": "Delete a transaction (admin only).\n\n**Path Parameter:**\n- `id`: Transaction ID\n\n**Warning:** Use with caution!"
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "🔐 Roles & Permissions",
+					"description": "Role-based access control management.",
+					"item": [
+						{
+							"name": "Get All Roles",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{adminToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/roles",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "admin", "roles"]
+								},
+								"description": "Get all system roles.\n\n**Response:**\n- Array of roles\n- Role name and description\n- Associated permissions"
+							},
+							"response": []
+						},
+						{
+							"name": "Create Role",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{adminToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"name\": \"Moderator\",\n  \"description\": \"Can manage users and view reports\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/roles",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "admin", "roles"]
+								},
+								"description": "Create a new role.\n\n**Request Body:**\n- `name`: Role name\n- `description`: Role description\n\n**Response:**\n- Created role details"
+							},
+							"response": []
+						},
+						{
+							"name": "Update Role",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{adminToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"name\": \"Updated Role\",\n  \"description\": \"Updated description\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/roles/3",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "admin", "roles", "3"]
+								},
+								"description": "Update role details.\n\n**Path Parameter:**\n- `id`: Role ID\n\n**Response:**\n- Updated role"
+							},
+							"response": []
+						},
+						{
+							"name": "Delete Role",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{adminToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/roles/5",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "admin", "roles", "5"]
+								},
+								"description": "Delete a role.\n\n**Path Parameter:**\n- `id`: Role ID\n\n**Note:** Cannot delete default roles (Admin, Player)"
+							},
+							"response": []
+						},
+						{
+							"name": "Get All Permissions",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{adminToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/permissions",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "admin", "permissions"]
+								},
+								"description": "Get all system permissions.\n\n**Response:**\n- Array of permissions\n- Permission name and description"
+							},
+							"response": []
+						},
+						{
+							"name": "Assign Permissions to Role",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{adminToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"permission_ids\": [1, 2, 3, 4]\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/roles/3/permissions",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "admin", "roles", "3", "permissions"]
+								},
+								"description": "Assign permissions to a role.\n\n**Path Parameter:**\n- `id`: Role ID\n\n**Request Body:**\n- `permission_ids`: Array of permission IDs\n\n**Response:**\n- Updated role with permissions"
+							},
+							"response": []
+						},
+						{
+							"name": "Assign Roles to User",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{adminToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"role_ids\": [1, 2]\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/users/5/roles",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "admin", "users", "5", "roles"]
+								},
+								"description": "Assign roles to a user.\n\n**Path Parameter:**\n- `id`: User ID\n\n**Request Body:**\n- `role_ids`: Array of role IDs\n\n**Response:**\n- Updated user with roles"
+							},
+							"response": []
+						},
+						{
+							"name": "Get User Roles",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{adminToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/users/5/roles",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "admin", "users", "5", "roles"]
+								},
+								"description": "Get all roles assigned to a user.\n\n**Path Parameter:**\n- `id`: User ID\n\n**Response:**\n- Array of user's roles"
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "⚙️ Settings",
+					"description": "Game settings and configuration management.",
+					"item": [
+						{
+							"name": "Get All Settings",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{adminToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/settings",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "admin", "settings"]
+								},
+								"description": "Get all game settings.\n\n**Response:**\n- All settings with values\n- Setting descriptions\n- Data types\n\n**Settings Include:**\n- `maximum_limit`: Max bet per card\n- `payout_multiplier`: Winning multiplier\n- `game_result_type`: auto or manual\n- `game_duration`: Game duration in minutes\n- `settlement_window`: Settlement delay in seconds"
+							},
+							"response": []
+						},
+						{
+							"name": "Update Settings",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{adminToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"maximum_limit\": \"5000\",\n  \"payout_multiplier\": \"11\",\n  \"game_result_type\": \"manual\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/settings",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "admin", "settings"]
+								},
+								"description": "Update game settings.\n\n**Request Body:**\n- Settings to update (key-value pairs)\n- Values must be strings\n\n**Example Settings:**\n```json\n{\n  \"maximum_limit\": \"5000\",\n  \"payout_multiplier\": \"11\",\n  \"game_result_type\": \"manual\",\n  \"game_duration\": \"5\",\n  \"settlement_window\": \"10\"\n}\n```\n\n**Response:**\n- Updated settings\n- Change logged in audit log"
+							},
+							"response": []
+						},
+						{
+							"name": "Get Settings Logs",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{adminToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/settings/logs?limit=50",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "admin", "settings", "logs"],
+									"query": [
+										{
+											"key": "limit",
+											"value": "50"
+										},
+										{
+											"key": "setting_key",
+											"value": "payout_multiplier",
+											"description": "Filter by specific setting",
+											"disabled": true
+										}
+									]
+								},
+								"description": "Get settings change history.\n\n**Query Parameters:**\n- `limit`: Number of records\n- `setting_key`: Filter by setting\n\n**Response:**\n- Array of setting changes\n- Previous and new values\n- Admin who made change\n- Timestamp"
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "📋 Audit Logs",
+					"description": "System audit logs and monitoring.",
+					"item": [
+						{
+							"name": "Get Audit Logs",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{adminToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/audit-logs?page=1&limit=100&action=bet_placed&user_id=5",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "admin", "audit-logs"],
+									"query": [
+										{
+											"key": "page",
+											"value": "1"
+										},
+										{
+											"key": "limit",
+											"value": "100"
+										},
+										{
+											"key": "action",
+											"value": "bet_placed",
+											"description": "Filter by action type"
+										},
+										{
+											"key": "user_id",
+											"value": "5",
+											"description": "Filter by user",
+											"disabled": true
+										},
+										{
+											"key": "admin_id",
+											"value": "4",
+											"description": "Filter by admin",
+											"disabled": true
+										},
+										{
+											"key": "date_from",
+											"value": "2024-11-01",
+											"description": "Start date",
+											"disabled": true
+										},
+										{
+											"key": "date_to",
+											"value": "2024-11-05",
+											"description": "End date",
+											"disabled": true
+										}
+									]
+								},
+								"description": "Get system audit logs.\n\n**Query Parameters:**\n- `page`: Page number\n- `limit`: Items per page\n- `action`: Filter by action type\n- `user_id`: Filter by user\n- `admin_id`: Filter by admin\n- `target_type`: Filter by target type\n- `date_from`: Start date\n- `date_to`: End date\n\n**Common Actions:**\n- `bet_placed`\n- `winnings_claimed`\n- `slip_cancelled`\n- `game_settled`\n- `user_created`\n- `settings_changed`\n\n**Response:**\n- Paginated audit logs\n- Complete action details\n- IP address and user agent\n- Timestamps"
+							},
+							"response": []
+						}
+					]
+				}
+			]
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "https://kismatx-api.kismatx.workers.dev",
+			"type": "string"
+		},
+		{
+			"key": "accessToken",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "refreshToken",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "adminToken",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "userId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "lastSlipId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "lastBarcode",
+			"value": "",
+			"type": "string"
+		}
+	]
+}
+

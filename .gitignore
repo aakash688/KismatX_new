@@ -1,0 +1,68 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Environment variables
+.env
+.env.*
+!.env.example
+!env.example
+
+# Logs
+logs/
+*.log
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage
+coverage/
+*.lcov
+.nyc_output/
+
+# Build output
+dist/
+build/
+
+# TypeScript
+*.tsbuildinfo
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.cursor/
+
+# OS files
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Uploads (keep folder, ignore files)
+uploads/*
+!uploads/.gitkeep
+!uploads/README.md
+
+# Database backups (keep config example, ignore actual backups)
+dbbackup/backups/
+dbbackup/kmx/
+dbbackup/backup-config.env
+dbbackup/node_modules/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Wrangler
+.wrangler/
+.dev.vars
+
+# Temporary
+tmp/
+temp/

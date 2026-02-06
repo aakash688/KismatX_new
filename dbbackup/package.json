@@ -1,0 +1,37 @@
+{
+  "name": "kismatx-db-backup",
+  "version": "1.0.0",
+  "description": "Database backup tool for KismatX - Creates MySQL dumps and uploads to AWS S3",
+  "main": "backup.js",
+  "type": "module",
+  "scripts": {
+    "backup": "node backup.js",
+    "backup:schedule": "node scheduler.js",
+    "restore": "node restore.js",
+    "setup": "node setup.js",
+    "pm2:start": "pm2 start ecosystem.config.cjs",
+    "pm2:stop": "pm2 stop kismatx-backup-scheduler",
+    "pm2:restart": "pm2 restart kismatx-backup-scheduler",
+    "pm2:logs": "pm2 logs kismatx-backup-scheduler",
+    "pm2:status": "pm2 status",
+    "pm2:delete": "pm2 delete kismatx-backup-scheduler"
+  },
+  "keywords": [
+    "backup",
+    "database",
+    "mysql",
+    "s3",
+    "aws"
+  ],
+  "author": "KismatX Team",
+  "license": "MIT",
+  "dependencies": {
+    "aws-sdk": "^2.1500.0",
+    "dotenv": "^16.3.1",
+    "mysql2": "^3.6.5",
+    "node-cron": "^3.0.2"
+  },
+  "devDependencies": {
+    "chalk": "^5.3.0"
+  }
+}

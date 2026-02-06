@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Documentation</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            border-bottom: 3px solid #007bff;
+            padding-bottom: 10px;
+        }
+        .endpoint {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background: #f9f9f9;
+        }
+        .method {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 3px;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+        .get { background: #28a745; color: white; }
+        .post { background: #007bff; color: white; }
+        .put { background: #ffc107; color: black; }
+        .delete { background: #dc3545; color: white; }
+        .url {
+            font-family: monospace;
+            font-size: 16px;
+            color: #333;
+        }
+        .description {
+            margin: 10px 0;
+            color: #666;
+        }
+        .test-section {
+            margin-top: 15px;
+            padding: 10px;
+            background: #e9ecef;
+            border-radius: 3px;
+        }
+        .test-button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 3px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        .test-button:hover {
+            background: #0056b3;
+        }
+        .response {
+            margin-top: 10px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-left: 4px solid #007bff;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 API Documentation</h1>
+        <p>Welcome to the API documentation. Here you can test all available endpoints.</p>
+        
+        <div class="endpoint">
+            <span class="method post">POST</span>
+            <span class="url">/api/auth/login</span>
+            <div class="description">Authenticate user and get access token</div>
+            <div class="test-section">
+                <button class="test-button" onclick="testLogin()">Test Login</button>
+                <div id="login-response" class="response" style="display: none;"></div>
+            </div>
+        </div>
+
+        <div class="endpoint">
+            <span class="method get">GET</span>
+            <span class="url">/api/user/me</span>
+            <div class="description">Get current user profile (requires authentication)</div>
+            <div class="test-section">
+                <button class="test-button" onclick="testGetMe()">Test Get Me</button>
+                <div id="me-response" class="response" style="display: none;"></div>
+            </div>
+        </div>
+
+        <div class="endpoint">
+            <span class="method get">GET</span>
+            <span class="url">/api/user</span>
+            <div class="description">List all users (admin only)</div>
+            <div class="test-section">
+                <button class="test-button" onclick="testListUsers()">Test List Users</button>
+                <div id="users-response" class="response" style="display: none;"></div>
+            </div>
+        </div>
+
+        <div class="endpoint">
+            <span class="method post">POST</span>
+            <span class="url">/api/user</span>
+            <div class="description">Create new user (admin only)</div>
+            <div class="test-section">
+                <button class="test-button" onclick="testCreateUser()">Test Create User</button>
+                <div id="create-response" class="response" style="display: none;"></div>
+            </div>
+        </div>
+
+        <div class="endpoint">
+            <span class="method get">GET</span>
+            <span class="url">/api/user/stats</span>
+            <div class="description">Get user statistics (admin only)</div>
+            <div class="test-section">
+                <button class="test-button" onclick="testUserStats()">Test User Stats</button>
+                <div id="stats-response" class="response" style="display: none;"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = '/api';
+        let accessToken = localStorage.getItem('accessToken');
+
+        async function makeRequest(url, options = {}) {
+            const config = {
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...options.headers
+                },
+                ...options
+            };
+
+            if (accessToken) {
+                config.headers.Authorization = `Bearer ${accessToken}`;
+            }
+
+            try {
+                const response = await fetch(API_BASE + url, config);
+                const data = await response.json();
+                return { response, data };
+            } catch (error) {
+                return { error: error.message };
+            }
+        }
+
+        function showResponse(elementId, data) {
+            const element = document.getElementById(elementId);
+            element.style.display = 'block';
+            element.textContent = JSON.stringify(data, null, 2);
+        }
+
+        async function testLogin() {
+            const response = await makeRequest('/auth/login', {
+                method: 'POST',
+                body: JSON.stringify({
+                    userid: 'admin',
+                    password: 'admin123'
+                })
+            });
+
+            if (response.data && response.data.accessToken) {
+                accessToken = response.data.accessToken;
+                localStorage.setItem('accessToken', accessToken);
+            }
+
+            showResponse('login-response', response.data || response.error);
+        }
+
+        async function testGetMe() {
+            const response = await makeRequest('/user/me');
+            showResponse('me-response', response.data || response.error);
+        }
+
+        async function testListUsers() {
+            const response = await makeRequest('/user');
+            showResponse('users-response', response.data || response.error);
+        }
+
+        async function testCreateUser() {
+            const response = await makeRequest('/user', {
+                method: 'POST',
+                body: JSON.stringify({
+                    fname: 'Test',
+                    lname: 'User',
+                    email: 'test@example.com',
+                    userid: 'test.user',
+                    password: 'password123',
+                    roleNames: '[1]',
+                    department: 1
+                })
+            });
+            showResponse('create-response', response.data || response.error);
+        }
+
+        async function testUserStats() {
+            const response = await makeRequest('/user/stats');
+            showResponse('stats-response', response.data || response.error);
+        }
+
+        // Load token from localStorage on page load
+        window.addEventListener('load', () => {
+            const token = localStorage.getItem('accessToken');
+            if (token) {
+                accessToken = token;
+            }
+        });
+    </script>
+</body>
+</html>

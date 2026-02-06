@@ -1,0 +1,50 @@
+name = "kismatx-api"
+main = "src/index.js"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+workers_dev = true
+
+# Supabase Configuration (Add these as secrets using: wrangler secret put)
+# wrangler secret put SUPABASE_URL
+# wrangler secret put SUPABASE_SERVICE_KEY
+# wrangler secret put JWT_SECRET
+
+[env.production]
+name = "kismatx-api-prod"
+routes = [
+  { pattern = "api.yourdomain.com/*", zone_name = "yourdomain.com" }
+]
+
+[env.staging]
+name = "kismatx-api-staging"
+
+# CORS Configuration
+[env.production.vars]
+CORS_ORIGIN = "https://yourdomain.com"
+
+[env.staging.vars]
+CORS_ORIGIN = "*"
+
+# For local development
+[vars]
+CORS_ORIGIN = "*"
+NODE_ENV = "development"
+
+# Cron Triggers for Game Automation
+[triggers]
+crons = [
+  "*/5 * * * *",  # Every 5 minutes - Create next game
+  "* * * * *"     # Every minute - Game state management and auto-settlement
+]
+
+# Durable Objects Configuration
+[[durable_objects.bindings]]
+name = "SettlementAlarmDO"
+class_name = "SettlementAlarmDO"
+script_name = "kismatx-api"
+
+# Durable Objects Migration (for initial deployment)
+# Using new_sqlite_classes for free tier compatibility
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["SettlementAlarmDO"]
