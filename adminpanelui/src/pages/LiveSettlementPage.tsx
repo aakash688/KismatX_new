@@ -43,6 +43,8 @@ const skillCardImgMap = {
   12: Rose
 }
 
+const SETTLEMENT_WINDOW_SECONDS = 10; // 10-second manual settlement window
+
 const LiveSettlementPage: React.FC = () => {
   const [data, setData] = useState<LiveSettlementData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -58,8 +60,72 @@ const LiveSettlementPage: React.FC = () => {
   const [displayedGame, setDisplayedGame] = useState<LiveSettlementData['current_game'] | null>(null);
   const [settlementWindowEndTime, setSettlementWindowEndTime] = useState<number | null>(null);
   
+  // --- LOCAL TIMER: Track game end time on the client side ---
+  // When we receive an active game with time_remaining_seconds, we compute:
+  //   gameEndTimeMs = Date.now() + (time_remaining_seconds * 1000)
+  // A 1-second local interval counts down and INSTANTLY transitions to
+  // settlement mode when it reaches 0 — no waiting for the next API poll.
+  const [localTimeRemaining, setLocalTimeRemaining] = useState<number | null>(null);
+  const gameEndTimeMsRef = useRef<number | null>(null); // client-side epoch ms when game ends
+  const trackedGameIdRef = useRef<string | null>(null); // game_id we're currently tracking
+  
+  // CRITICAL: Use refs to persist settlement state across re-renders and API polls
+  const settlementWindowEndTimeRef = useRef<number | null>(null); // Persistent settlement window end time
+  const isInSettlementModeRef = useRef<boolean>(false); // Flag to prevent API polls from clearing settlement state
+  
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const localTimerRef = useRef<NodeJS.Timeout | null>(null);
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // ─────────── helper: start the local game-end timer ───────────
+  const startLocalTimer = (gameId: string, endTimeMs: number) => {
+    // Only start if this is a new game or end time changed
+    if (trackedGameIdRef.current === gameId && gameEndTimeMsRef.current === endTimeMs) return;
+    
+    trackedGameIdRef.current = gameId;
+    gameEndTimeMsRef.current = endTimeMs;
+    
+    // Clear any existing local timer
+    if (localTimerRef.current) clearInterval(localTimerRef.current);
+    
+    const tick = () => {
+      const now = Date.now();
+      const remaining = Math.max(0, Math.ceil((endTimeMs - now) / 1000));
+      setLocalTimeRemaining(remaining);
+      
+      if (remaining <= 0) {
+        // ─── GAME ENDED LOCALLY ───
+        // Immediately transition to settlement mode without waiting for API
+        if (localTimerRef.current) clearInterval(localTimerRef.current);
+        localTimerRef.current = null;
+        
+        // Set settlement window: 10 seconds from game end
+        const windowEnd = endTimeMs + SETTLEMENT_WINDOW_SECONDS * 1000;
+        setSettlementWindowEndTime(windowEnd);
+        settlementWindowEndTimeRef.current = windowEnd; // Persist in ref
+        isInSettlementModeRef.current = true; // Mark as in settlement mode
+        const settlementRemaining = Math.max(0, Math.ceil((windowEnd - now) / 1000));
+        setSettlementCountdown(settlementRemaining);
+        
+        // Mark the displayed game as completed locally so the UI shows settlement
+        setDisplayedGame(prev => {
+          if (prev && prev.game_id === gameId) {
+            return {
+              ...prev,
+              status: 'completed',
+              settlement_status: 'not_settled',
+              time_remaining_seconds: 0,
+              is_in_settlement_window: true
+            };
+          }
+          return prev;
+        });
+      }
+    };
+    
+    tick(); // immediate first tick
+    localTimerRef.current = setInterval(tick, 1000);
+  };
 
   // Fetch live settlement data
   const fetchData = async () => {
@@ -79,78 +145,133 @@ const LiveSettlementPage: React.FC = () => {
         setUsersInGame([]);
       }
       
-      // Priority logic:
-      // 1. If we're displaying an un-settled completed game, KEEP showing it (don't switch to new game)
-      // 2. If backend returns an un-settled completed game, show it
-      // 3. Only show active/pending games if no un-settled games exist
-      
-      // Check if we're currently displaying an un-settled completed game
+      // ─── Are we currently in a local settlement window? ───
+      // Use ref for persistent check - prevents API polls from clearing state
+      const windowEndTime = settlementWindowEndTimeRef.current || settlementWindowEndTime;
+      const inLocalSettlement = windowEndTime && Date.now() < windowEndTime;
       const isDisplayingUnsettled = displayedGame?.status === 'completed' && 
                                      displayedGame?.settlement_status === 'not_settled';
       
-      if (isDisplayingUnsettled) {
-        // We're already showing an un-settled game - check if backend still has it
-        if (currentGame?.game_id === displayedGame.game_id) {
-          // Backend still returns the same un-settled game - update its data but keep showing it
-          const gameEndTime = new Date(currentGame.end_time).getTime();
-          const now = Date.now();
-          const windowEndTime = gameEndTime + 10000; // 10 seconds from game end
-          const timeRemaining = Math.max(0, windowEndTime - now);
-          
-          setDisplayedGame(currentGame); // Update with latest data
-          setSettlementWindowEndTime(windowEndTime);
-          const remaining = Math.ceil(timeRemaining / 1000);
-          setSettlementCountdown(Math.max(0, remaining));
+      // ─── CASE 1: We're in settlement window (local timer or API) ───
+      // CRITICAL: Protect settlement window state from API poll interference
+      // Check both state and ref to ensure persistence
+      if (isInSettlementModeRef.current || (isDisplayingUnsettled && (inLocalSettlement || (settlementWindowEndTime && settlementCountdown !== null && settlementCountdown > 0)))) {
+        // If backend returns the SAME game, update card_stats but PRESERVE settlement state
+        if (displayedGame && currentGame?.game_id === displayedGame.game_id) {
+          // Update data (card stats may have changed with last-second bets)
+          // BUT preserve settlement window state - NEVER clear it during API polls!
+          setDisplayedGame(prev => ({
+            ...currentGame,
+            // FORCE preserve settlement state
+            status: 'completed',
+            settlement_status: 'not_settled',
+            is_in_settlement_window: true
+          }));
+          // ALWAYS recalculate countdown from our stored window end time (don't let API reset it)
+          const windowEnd = settlementWindowEndTimeRef.current || settlementWindowEndTime;
+          if (windowEnd) {
+            const remaining = Math.max(0, Math.ceil((windowEnd - Date.now()) / 1000));
+            setSettlementCountdown(remaining);
+            // Sync ref with state
+            if (!settlementWindowEndTimeRef.current) {
+              settlementWindowEndTimeRef.current = windowEnd;
+            }
+            // If countdown reaches 0, clear state; otherwise keep it
+            if (remaining <= 0) {
+              setSettlementWindowEndTime(null);
+              settlementWindowEndTimeRef.current = null;
+              isInSettlementModeRef.current = false;
+              setSettlementCountdown(null);
+              setSelectedCard(null);
+            }
+          }
         } else {
-          // Backend no longer returns our un-settled game (might have been settled)
-          // But wait - if it's settled, backend won't return it. Keep showing our displayed game
-          // until we explicitly know it's settled
-          // Calculate countdown for the displayed game
-          const gameEndTime = new Date(displayedGame.end_time).getTime();
-          const now = Date.now();
-          const windowEndTime = gameEndTime + 10000;
-          const timeRemaining = Math.max(0, windowEndTime - now);
-          const remaining = Math.ceil(timeRemaining / 1000);
-          setSettlementCountdown(Math.max(0, remaining));
-          
-          // Keep showing the un-settled game - don't switch to new game
-          return;
+          // Backend returned a DIFFERENT game — our game may have been auto-settled already
+          // BUT if we still have time in settlement window, keep showing ours
+          if (inLocalSettlement && settlementWindowEndTime && Date.now() < settlementWindowEndTime) {
+            // Recalculate countdown but DON'T switch games
+            const remaining = Math.max(0, Math.ceil((settlementWindowEndTime - Date.now()) / 1000));
+            setSettlementCountdown(remaining);
+            if (remaining <= 0) {
+              setSettlementWindowEndTime(null);
+              setSettlementCountdown(null);
+              setSelectedCard(null);
+            }
+            return; // Don't switch away - keep showing settlement UI
+          }
+          // Settlement window expired, move to whatever backend returned
         }
-      } else if (currentGame?.status === 'completed' && currentGame?.settlement_status === 'not_settled') {
-        // Backend returns an un-settled completed game - show it
-        const gameEndTime = new Date(currentGame.end_time).getTime();
-        const now = Date.now();
-        const windowEndTime = gameEndTime + 10000; // 10 seconds from game end
-        const timeRemaining = Math.max(0, windowEndTime - now);
         
+        // If we handled settlement above, don't fall through
+        if (inLocalSettlement && settlementWindowEndTime && Date.now() < settlementWindowEndTime) {
+          return; // Keep settlement mode active
+        }
+      }
+      
+      // ─── CASE 2: Backend says game is completed + not_settled (API caught up) ───
+      if (currentGame?.status === 'completed' && currentGame?.settlement_status === 'not_settled') {
         setDisplayedGame(currentGame);
-        setSettlementWindowEndTime(windowEndTime);
-        const remaining = Math.ceil(timeRemaining / 1000);
-        setSettlementCountdown(Math.max(0, remaining));
         
-      } else if (currentGame && (currentGame.status === 'active' || currentGame.status === 'pending')) {
-        // Backend returns an active/pending game
-        // Only show it if we're NOT displaying an un-settled game
+        // If we already have a settlement window running (from local timer), keep it
+        const existingWindowEnd = settlementWindowEndTimeRef.current || settlementWindowEndTime;
+        if (!existingWindowEnd || Date.now() >= existingWindowEnd) {
+          // Compute from game end_time (fallback if local timer didn't fire)
+          const gameEndMs = new Date(currentGame.end_time).getTime();
+          const windowEnd = gameEndMs + SETTLEMENT_WINDOW_SECONDS * 1000;
+          setSettlementWindowEndTime(windowEnd);
+          settlementWindowEndTimeRef.current = windowEnd;
+          isInSettlementModeRef.current = true;
+          const remaining = Math.max(0, Math.ceil((windowEnd - Date.now()) / 1000));
+          setSettlementCountdown(remaining);
+        } else {
+          // Preserve existing window and recalculate countdown
+          if (!settlementWindowEndTimeRef.current) {
+            settlementWindowEndTimeRef.current = existingWindowEnd;
+          }
+          isInSettlementModeRef.current = true;
+          const remaining = Math.max(0, Math.ceil((existingWindowEnd - Date.now()) / 1000));
+          setSettlementCountdown(remaining);
+        }
+        
+        // Stop local game timer if still running
+        if (localTimerRef.current) {
+          clearInterval(localTimerRef.current);
+          localTimerRef.current = null;
+        }
+        return;
+      }
+      
+      // ─── CASE 3: Active or pending game ───
+      if (currentGame && (currentGame.status === 'active' || currentGame.status === 'pending')) {
         if (!isDisplayingUnsettled) {
-          // No un-settled game to block - show the active/pending game
           setDisplayedGame(currentGame);
           setSettlementWindowEndTime(null);
           setSettlementCountdown(null);
           setSelectedCard(null);
+          
+          // ★ KEY: Start local timer so we detect game end INSTANTLY
+          if (currentGame.status === 'active' && currentGame.time_remaining_seconds > 0) {
+            const endMs = Date.now() + (currentGame.time_remaining_seconds * 1000);
+            startLocalTimer(currentGame.game_id, endMs);
+          }
         }
-        // If we're displaying an un-settled game, we already returned above
-        
-      } else if (!currentGame) {
-        // No game returned by backend
-        // If we're displaying an un-settled game, keep showing it
-        if (!isDisplayingUnsettled) {
-          // No un-settled game to keep - clear everything
+        return;
+      }
+      
+      // ─── CASE 4: No current game ───
+      if (!currentGame) {
+        if (!isDisplayingUnsettled || !inLocalSettlement) {
           setDisplayedGame(null);
           setSettlementWindowEndTime(null);
           setSettlementCountdown(null);
           setSelectedCard(null);
+          trackedGameIdRef.current = null;
+          gameEndTimeMsRef.current = null;
+          if (localTimerRef.current) {
+            clearInterval(localTimerRef.current);
+            localTimerRef.current = null;
+          }
         }
-        // Otherwise keep showing the un-settled game
       }
       
     } catch (err: any) {
@@ -160,66 +281,87 @@ const LiveSettlementPage: React.FC = () => {
     }
   };
 
-  // Poll for updates every 2 seconds (real-time updates)
+  // Poll for updates every 5 seconds
   useEffect(() => {
     fetchData(); // Initial load
     
-    // Poll every 2 seconds for live updates
-    // Poll every 5 seconds instead of 2 seconds to reduce request count
-    // Cloudflare Workers free tier: 100,000 requests/day = ~1.16 req/sec = ~69 req/min
-    // 5-second polling = 12 req/min per user, which is well within limits
+    // Poll every 5 seconds for live updates (free-tier friendly)
+    // The LOCAL timer handles the game-end transition instantly;
+    // polling just keeps card_stats / bet data fresh.
     pollIntervalRef.current = setInterval(() => {
       fetchData();
     }, 5000);
 
     return () => {
-      if (pollIntervalRef.current) {
-        clearInterval(pollIntervalRef.current);
-      }
+      if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+      if (localTimerRef.current) clearInterval(localTimerRef.current);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedUserId]);
 
-  // Handle settlement countdown timer
+  // Handle settlement countdown timer (10-second window after game end)
+  // CRITICAL: Use refs to prevent timer from stopping on re-renders
   useEffect(() => {
     const game = displayedGame;
-    const isInWindow = game?.status === 'completed' && 
-                       settlementWindowEndTime && 
-                       Date.now() < settlementWindowEndTime &&
-                       game.settlement_status === 'not_settled';
+    const windowEnd = settlementWindowEndTimeRef.current || settlementWindowEndTime;
+    const isInWindow = isInSettlementModeRef.current || (
+      game?.status === 'completed' && 
+      windowEnd && 
+      Date.now() < windowEnd &&
+      game.settlement_status === 'not_settled'
+    );
     
-    if (isInWindow && settlementCountdown !== null && settlementCountdown > 0) {
+    // Clear any existing interval first
+    if (countdownIntervalRef.current) {
+      clearInterval(countdownIntervalRef.current);
+      countdownIntervalRef.current = null;
+    }
+    
+    if (isInWindow && windowEnd) {
+      // Start countdown timer
       countdownIntervalRef.current = setInterval(() => {
         const now = Date.now();
-        const timeRemaining = settlementWindowEndTime ? settlementWindowEndTime - now : 0;
+        const currentWindowEnd = settlementWindowEndTimeRef.current || settlementWindowEndTime;
+        
+        if (!currentWindowEnd) {
+          // Window cleared, stop timer
+          if (countdownIntervalRef.current) {
+            clearInterval(countdownIntervalRef.current);
+            countdownIntervalRef.current = null;
+          }
+          return;
+        }
+        
+        const timeRemaining = currentWindowEnd - now;
         
         if (timeRemaining <= 0) {
-          // Countdown finished - window expired
+          // Window expired
           setSettlementCountdown(0);
-          setSelectedCard(null); // Clear selection
-          // Auto-settle will happen on backend in auto mode
-          // In manual mode, game stays until manually settled
-          // Refresh to check if game was auto-settled or still pending
-          setTimeout(() => {
-            fetchData();
-          }, 1000);
+          setSelectedCard(null);
+          setSettlementWindowEndTime(null);
+          settlementWindowEndTimeRef.current = null;
+          isInSettlementModeRef.current = false;
+          
+          if (countdownIntervalRef.current) {
+            clearInterval(countdownIntervalRef.current);
+            countdownIntervalRef.current = null;
+          }
+          
+          // Refresh to see if backend auto-settled
+          setTimeout(() => fetchData(), 1000);
         } else {
           const remainingSeconds = Math.ceil(timeRemaining / 1000);
           setSettlementCountdown(remainingSeconds);
         }
-      }, 1000);
-    } else {
-      if (countdownIntervalRef.current) {
-        clearInterval(countdownIntervalRef.current);
-      }
+      }, 500); // tick every 500ms for smoother countdown
     }
 
     return () => {
-      if (countdownIntervalRef.current) {
-        clearInterval(countdownIntervalRef.current);
-      }
+      // Don't clear interval on cleanup - let it run until window expires
+      // This prevents timer from stopping on re-renders
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [displayedGame, settlementCountdown, settlementWindowEndTime]);
+  }, [displayedGame?.game_id, settlementWindowEndTime]); // Only re-run if game_id or window end time changes
 
   // Format currency
   const formatCurrency = (amount: number) => {
@@ -269,14 +411,27 @@ const LiveSettlementPage: React.FC = () => {
         winning_card: selectedCard
       });
       
-      // Clear settlement window state
+      // Clear ALL state: settlement window, local timer, selection
       setDisplayedGame(null);
       setSettlementWindowEndTime(null);
+      settlementWindowEndTimeRef.current = null;
+      isInSettlementModeRef.current = false;
+      setSettlementCountdown(null);
       setSelectedCard(null);
       setShowConfirmDialog(false);
+      setLocalTimeRemaining(null);
+      trackedGameIdRef.current = null;
+      gameEndTimeMsRef.current = null;
+      if (localTimerRef.current) {
+        clearInterval(localTimerRef.current);
+        localTimerRef.current = null;
+      }
+      if (countdownIntervalRef.current) {
+        clearInterval(countdownIntervalRef.current);
+        countdownIntervalRef.current = null;
+      }
       
-      // Refresh data immediately to show new game or "no game" message
-      // The backend will no longer return the settled game
+      // Refresh data immediately to show new game
       setTimeout(() => {
         fetchData();
       }, 500);
@@ -331,9 +486,15 @@ const LiveSettlementPage: React.FC = () => {
   const recentGames = data?.recent_games || [];
   
   // Check if we're in settlement window (either from API or local timer)
-  const isInSettlementWindow = currentGame?.status === 'completed' && 
-                                (currentGame?.is_in_settlement_window || 
-                                 (settlementWindowEndTime && Date.now() < settlementWindowEndTime));
+  // CRITICAL: Use refs for persistent check - prevents UI from disappearing on re-renders
+  const windowEnd = settlementWindowEndTimeRef.current || settlementWindowEndTime;
+  const isInSettlementWindow = isInSettlementModeRef.current || (
+    currentGame?.status === 'completed' && 
+    currentGame?.settlement_status === 'not_settled' &&
+    windowEnd !== null &&
+    Date.now() < windowEnd &&
+    (settlementCountdown !== null && settlementCountdown > 0)
+  );
 
   return (
     <div className="space-y-4 md:space-y-6">
@@ -468,7 +629,7 @@ const LiveSettlementPage: React.FC = () => {
                         <div className="text-sm md:text-base font-bold flex items-center gap-1">
                           <Clock className="h-3 w-3 md:h-4 md:w-4" />
                           {currentGame.status === 'active' || currentGame.status === 'pending' 
-                            ? formatTime(currentGame.time_remaining_seconds)
+                            ? formatTime(localTimeRemaining !== null ? localTimeRemaining : currentGame.time_remaining_seconds)
                             : 'Game Ended'
                           }
                         </div>

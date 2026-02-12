@@ -41,11 +41,16 @@ const StatsPage: React.FC = () => {
 
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Initialize users and today's date
+  // Initialize users and today's date (IST timezone)
   useEffect(() => {
     fetchUsers();
 
-    const today = new Date().toISOString().split("T")[0];
+    // CRITICAL: Use IST date for "today", NOT UTC
+    // new Date().toISOString().split("T")[0] gives UTC date which is wrong after midnight IST
+    // Between 00:00 IST and 05:30 IST, UTC date is still the previous day
+    const today = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Kolkata'
+    }).format(new Date()); // 'en-CA' locale returns YYYY-MM-DD format
     setStartDate(today);
     setEndDate(today);
     setSelectedUser("all");

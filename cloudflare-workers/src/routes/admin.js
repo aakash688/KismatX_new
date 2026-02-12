@@ -826,9 +826,70 @@ admin.get('/games', async (c) => {
 
     const pageGames = games.slice(offset, offset + limit);
 
+    // ============================================
+    // Calculate total_wagered for each game (matching Node.js logic)
+    // Fetch bet slips for visible games and compute wagered amounts
+    // excluding cancelled slips
+    // ============================================
+    const pageGameIds = pageGames.map(g => g.game_id);
+    let wageredMap = new Map();
+
+    if (pageGameIds.length > 0) {
+      // Fetch all bet slips for these games in one query
+      const { data: allBetSlips } = await supabase
+        .from('bet_slips')
+        .select('game_id, slip_id, total_amount')
+        .in('game_id', pageGameIds);
+
+      if (allBetSlips && allBetSlips.length > 0) {
+        // Get cancelled slip IDs
+        const slipIds = allBetSlips.map(s => s.slip_id);
+        const cancelledSlipIds = new Set();
+
+        if (slipIds.length > 0) {
+          const { data: cancellations } = await supabase
+            .from('wallet_logs')
+            .select('reference_id')
+            .eq('reference_type', 'cancellation')
+            .in('reference_id', slipIds);
+
+          (cancellations || []).forEach(c => {
+            if (c.reference_id) cancelledSlipIds.add(c.reference_id);
+          });
+        }
+
+        // Filter out cancelled slips and build wagered map
+        allBetSlips
+          .filter(slip => !cancelledSlipIds.has(slip.slip_id))
+          .forEach(slip => {
+            const current = wageredMap.get(slip.game_id) || 0;
+            wageredMap.set(slip.game_id, current + parseFloat(slip.total_amount || 0));
+          });
+      }
+    }
+
+    // Format response with total_wagered (matching Node.js response shape)
+    const { formatIST, parseISTDateTime } = await import('../utils/timezone.js');
+    const formattedGames = pageGames.map(game => ({
+      id: game.id,
+      game_id: game.game_id,
+      start_time: game.start_time,
+      end_time: game.end_time,
+      status: game.status,
+      winning_card: game.winning_card,
+      payout_multiplier: parseFloat(game.payout_multiplier || 0),
+      settlement_status: game.settlement_status,
+      settlement_started_at: game.settlement_started_at || null,
+      settlement_completed_at: game.settlement_completed_at || null,
+      settlement_error: game.settlement_error || null,
+      created_at: game.created_at,
+      updated_at: game.updated_at,
+      total_wagered: wageredMap.get(game.game_id) || 0
+    }));
+
     return c.json({
       success: true,
-      data: pageGames, // Always return array
+      data: formattedGames,
       pagination: {
         page,
         limit,
@@ -1582,67 +1643,165 @@ admin.post('/stats', authenticate, authorize('admin'), async (c) => {
     
     const supabase = getSupabaseClient(c.env);
     
-    // Parse dates (treat as IST dates - use +05:30 offset like Node.js)
-    const startDateTime = new Date(startDate + 'T00:00:00+05:30');
-    const endDateTime = new Date(endDate + 'T23:59:59+05:30');
+    // CRITICAL: created_at is 'timestamp without time zone' and stores IST values directly.
+    // Do NOT convert to UTC — use plain IST strings for comparison.
+    // Converting to UTC via +05:30 offset shifts the range by 5.5 hours, causing wrong results.
+    const startIST = `${startDate} 00:00:00`;
+    const endIST = `${endDate} 23:59:59`;
     
     console.log('📊 Stats request:', { startDate, endDate, userId });
-    console.log('Date range:', { startDateTime: startDateTime.toISOString(), endDateTime: endDateTime.toISOString() });
+    console.log('Date range (IST, no tz conversion):', { startIST, endIST });
     
     // Build query for bet slips
-    let slipsQuery = supabase
+    // CRITICAL: Supabase has a default limit of 1000 rows!
+    // We need to fetch ALL rows using pagination
+    let allBetSlips = [];
+    let page = 0;
+    const pageSize = 1000;
+    let totalCount = null;
+    let hasMore = true;
+    
+    // First, get the total count
+    let countQuery = supabase
       .from('bet_slips')
-      .select('*')
-      .gte('created_at', startDateTime.toISOString())
-      .lte('created_at', endDateTime.toISOString());
+      .select('*', { count: 'exact', head: true })
+      .gte('created_at', startIST)
+      .lte('created_at', endIST);
     
     if (userId && userId !== 'all') {
-      slipsQuery = slipsQuery.eq('user_id', parseInt(userId));
+      countQuery = countQuery.eq('user_id', parseInt(userId));
     }
     
-    const { data: allBetSlips } = await slipsQuery;
+    const { count } = await countQuery;
+    totalCount = count || 0;
+    console.log(`Total bet slips in date range: ${totalCount}`);
+    
+    // Fetch all rows in pages
+    while (hasMore) {
+      let pageQuery = supabase
+        .from('bet_slips')
+        .select('*')
+        .gte('created_at', startIST)
+        .lte('created_at', endIST)
+        .range(page * pageSize, (page + 1) * pageSize - 1);
+      
+      if (userId && userId !== 'all') {
+        pageQuery = pageQuery.eq('user_id', parseInt(userId));
+      }
+      
+      const { data: pageData, error } = await pageQuery;
+      
+      if (error) {
+        console.error('Error fetching bet slips page:', error);
+        throw error;
+      }
+      
+      if (pageData && pageData.length > 0) {
+        allBetSlips = allBetSlips.concat(pageData);
+        page++;
+        
+        // Check if we got all rows
+        if (allBetSlips.length >= totalCount || pageData.length < pageSize) {
+          hasMore = false;
+        }
+      } else {
+        hasMore = false;
+      }
+    }
     
     console.log(`Found ${allBetSlips?.length || 0} bet slips`);
     
     // Get cancelled slip IDs
-    const slipIds = allBetSlips?.map(s => s.slip_id) || [];
+    // OPTIMIZED APPROACH: Query cancellation logs created within date range (with buffer)
+    // This limits the dataset significantly while avoiding Supabase .in() limit issues
+    // Cancellation logs are typically created shortly after bet_slip creation, so we use
+    // a date range filter to reduce the dataset from potentially thousands to dozens
     let cancelledSlipIds = new Set();
     
-    if (slipIds.length > 0) {
-      const { data: cancellations } = await supabase
+    // Query cancellation logs created within our date range (with 1-day buffer before/after)
+    // This is much more efficient than querying ALL cancellation logs
+    const cancelStartDate = new Date(startDate + ' 00:00:00');
+    cancelStartDate.setDate(cancelStartDate.getDate() - 1); // 1 day before
+    const cancelEndDate = new Date(endDate + ' 23:59:59');
+    cancelEndDate.setDate(cancelEndDate.getDate() + 1); // 1 day after
+    
+    const cancelStartIST = cancelStartDate.toISOString().split('T')[0] + ' 00:00:00';
+    const cancelEndIST = cancelEndDate.toISOString().split('T')[0] + ' 23:59:59';
+    
+    const { data: cancellations, error: cancelError } = await supabase
+      .from('wallet_logs')
+      .select('reference_id')
+      .eq('reference_type', 'cancellation')
+      .gte('created_at', cancelStartIST)
+      .lte('created_at', cancelEndIST);
+    
+    if (cancelError) {
+      console.error('Error fetching cancellations:', cancelError);
+      // Fallback: Query all cancellations if date-filtered query fails
+      const { data: allCancellations } = await supabase
         .from('wallet_logs')
         .select('reference_id')
-        .eq('reference_type', 'cancellation')
-        .in('reference_id', slipIds);
+        .eq('reference_type', 'cancellation');
       
-      cancelledSlipIds = new Set(cancellations?.map(c => c.reference_id) || []);
+      if (allCancellations) {
+        const slipIdSet = new Set(allBetSlips.map(s => String(s.slip_id).trim()));
+        allCancellations.forEach(c => {
+          const refId = String(c.reference_id || '').trim();
+          if (refId && slipIdSet.has(refId)) {
+            cancelledSlipIds.add(refId);
+          }
+        });
+      }
+    } else if (cancellations) {
+      // Create a Set of all slip IDs for fast O(1) lookup
+      const slipIdSet = new Set(allBetSlips.map(s => String(s.slip_id).trim()));
+      
+      // Filter cancellations to only those that match our slip IDs (in-memory filter)
+      cancellations.forEach(c => {
+        const refId = String(c.reference_id || '').trim();
+        if (refId && slipIdSet.has(refId)) {
+          cancelledSlipIds.add(refId);
+        }
+      });
+      
+      console.log(`Found ${cancelledSlipIds.size} cancelled slips to exclude (queried ${cancellations.length} cancellation logs in date range)`);
     }
     
     // Filter out cancelled slips
-    const betSlips = (allBetSlips || []).filter(s => !cancelledSlipIds.has(s.slip_id));
-    console.log(`After filtering cancelled slips: ${betSlips.length} bet slips (excluded ${(allBetSlips?.length || 0) - betSlips.length} cancelled)`);
+    // CRITICAL: Ensure UUID comparison works correctly (both should be strings)
+    const betSlips = (allBetSlips || []).filter(s => {
+      const slipId = String(s.slip_id || '').trim();
+      const isCancelled = cancelledSlipIds.has(slipId);
+      return !isCancelled;
+    });
     
-    // Calculate total wagered
-    const totalWagered = betSlips.reduce((sum, slip) => 
-      sum + parseFloat(slip.total_amount || 0), 0);
+    const excludedCount = (allBetSlips?.length || 0) - betSlips.length;
+    console.log(`After filtering cancelled slips: ${betSlips.length} bet slips (excluded ${excludedCount} cancelled)`);
+    console.log(`Cancelled slip IDs found: ${Array.from(cancelledSlipIds).slice(0, 5).join(', ')}...`);
     
-    console.log('Total Wagered:', totalWagered);
+    // Calculate total wagered with proper numeric handling
+    const totalWagered = betSlips.reduce((sum, slip) => {
+      const amount = parseFloat(slip.total_amount || 0);
+      if (isNaN(amount)) {
+        console.warn(`Invalid total_amount for slip ${slip.slip_id}: ${slip.total_amount}`);
+        return sum;
+      }
+      return sum + amount;
+    }, 0);
     
-    // Get claimed bet slips for total scanned (with userId filter if specified - matching Node.js)
-    let claimedQuery = supabase
-      .from('bet_slips')
-      .select('payout_amount')
-      .gte('created_at', startDateTime.toISOString())
-      .lte('created_at', endDateTime.toISOString())
-      .eq('claimed', true);
+    console.log('Total Wagered (calculated):', totalWagered);
+    console.log('Expected from DB (with cancellation filter): 433405');
     
-    if (userId && userId !== 'all') {
-      claimedQuery = claimedQuery.eq('user_id', parseInt(userId));
-    }
+    // Get claimed bet slips for total scanned (CRITICAL: Must exclude cancelled slips!)
+    // Use the already-filtered betSlips array instead of querying again
+    const claimedSlips = betSlips.filter(slip => slip.claimed === true);
     
-    const { data: claimedSlips } = await claimedQuery;
+    // Apply userId filter if specified
+    const filteredClaimedSlips = userId && userId !== 'all' 
+      ? claimedSlips.filter(slip => slip.user_id === parseInt(userId))
+      : claimedSlips;
     
-    const totalScanned = (claimedSlips || []).reduce((sum, slip) => 
+    const totalScanned = filteredClaimedSlips.reduce((sum, slip) => 
       sum + parseFloat(slip.payout_amount || 0), 0);
     
     console.log('Total Scanned (Claimed Winnings):', totalScanned);
@@ -1674,22 +1833,13 @@ admin.post('/stats', authenticate, authorize('admin'), async (c) => {
       stats.wagered += wagered;
     });
     
-    // Add claimed winnings per user (matching Node.js query with date params)
-    let claimedPerUserQuery = supabase
-      .from('bet_slips')
-      .select('user_id, payout_amount')
-      .gte('created_at', startDateTime.toISOString())
-      .lte('created_at', endDateTime.toISOString())
-      .eq('claimed', true);
+    // Add claimed winnings per user (CRITICAL: Use already-filtered betSlips to exclude cancelled!)
+    // Get claimed slips from the already-filtered betSlips array (cancelled already excluded)
+    const claimedPerUser = betSlips.filter(slip => slip.claimed === true);
     
-    // Note: Node.js doesn't filter by userId here, it groups by user_id
-    // So we get all claimed slips and merge them
+    console.log('Claimed per user count:', claimedPerUser.length);
     
-    const { data: claimedPerUser } = await claimedPerUserQuery;
-    
-    console.log('Claimed per user count:', claimedPerUser?.length || 0);
-    
-    (claimedPerUser || []).forEach(slip => {
+    claimedPerUser.forEach(slip => {
       const uid = slip.user_id;
       if (userStatsMap.has(uid)) {
         const stats = userStatsMap.get(uid);
@@ -1772,32 +1922,33 @@ admin.get('/stats/trend', authenticate, authorize('admin'), async (c) => {
     }
     
     const supabase = getSupabaseClient(c.env);
-    const { formatIST } = await import('../utils/timezone.js');
     
-    // Parse dates as IST (use +05:30 offset like Node.js)
-    const startDateTime = new Date(startDate + 'T00:00:00+05:30');
-    const endDateTime = new Date(endDate + 'T23:59:59+05:30');
+    // CRITICAL: created_at/claimed_at are 'timestamp without time zone' and store IST values.
+    // Do NOT convert to UTC — use plain IST strings for comparison.
+    const startIST = `${startDate} 00:00:00`;
+    const endIST = `${endDate} 23:59:59`;
     
     // Get all bet slips in range
     const { data: betSlips } = await supabase
       .from('bet_slips')
       .select('created_at, total_amount')
-      .gte('created_at', startDateTime.toISOString())
-      .lte('created_at', endDateTime.toISOString());
+      .gte('created_at', startIST)
+      .lte('created_at', endIST);
     
     // Get all claimed winnings in range
     const { data: claimedSlips } = await supabase
       .from('bet_slips')
       .select('claimed_at, payout_amount')
-      .gte('claimed_at', startDateTime.toISOString())
-      .lte('claimed_at', endDateTime.toISOString())
+      .gte('claimed_at', startIST)
+      .lte('claimed_at', endIST)
       .eq('claimed', true);
     
-    // Group by date
+    // Group by date — created_at already stores IST, just extract date part
     const trendMap = new Map();
     
     (betSlips || []).forEach(slip => {
-      const date = formatIST(new Date(slip.created_at), 'yyyy-MM-dd');
+      // created_at is IST string like "2026-02-08 13:07:17" — just take date part
+      const date = String(slip.created_at).substring(0, 10);
       if (!trendMap.has(date)) {
         trendMap.set(date, { date, wagered: 0, scanned: 0 });
       }
@@ -1805,7 +1956,7 @@ admin.get('/stats/trend', authenticate, authorize('admin'), async (c) => {
     });
     
     (claimedSlips || []).forEach(slip => {
-      const date = formatIST(new Date(slip.claimed_at), 'yyyy-MM-dd');
+      const date = String(slip.claimed_at).substring(0, 10);
       if (!trendMap.has(date)) {
         trendMap.set(date, { date, wagered: 0, scanned: 0 });
       }

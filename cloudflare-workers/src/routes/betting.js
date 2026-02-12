@@ -561,7 +561,7 @@ betting.get('/stats', async (c) => {
   try {
     const user = c.get('user');
     const supabase = getSupabaseClient(c.env);
-    const { formatIST, parseISTDateTime, nowIST } = await import('../utils/timezone.js');
+    const { formatIST, parseISTDateTime, nowIST, getISTComponents } = await import('../utils/timezone.js');
     
     const date_from = c.req.query('date_from');
     const date_to = c.req.query('date_to');
@@ -679,34 +679,32 @@ betting.get('/stats', async (c) => {
     }
 
     // Original stats logic when game_id is not provided
-    // Parse date range (treat as IST dates)
+    // CRITICAL: created_at is 'timestamp without time zone' and stores IST values directly.
+    // Do NOT convert to UTC — use plain IST strings for comparison.
     let startDate, endDate;
     let startDateStr, endDateStr;
 
     if (date_from) {
       startDateStr = date_from;
-      const dateIST = new Date(date_from + 'T00:00:00+05:30'); // IST offset
-      startDate = dateIST.toISOString();
+      startDate = `${date_from} 00:00:00`;
     } else {
       // Default to first day of current month (IST)
       const now = nowIST();
-      const year = now.getFullYear();
-      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const istComp = getISTComponents(now);
+      const year = istComp.year;
+      const month = String(istComp.month).padStart(2, '0');
       startDateStr = `${year}-${month}-01`;
-      const dateIST = new Date(startDateStr + 'T00:00:00+05:30');
-      startDate = dateIST.toISOString();
+      startDate = `${startDateStr} 00:00:00`;
     }
 
     if (date_to) {
       endDateStr = date_to;
-      const dateIST = new Date(date_to + 'T23:59:59+05:30'); // IST offset
-      endDate = dateIST.toISOString();
+      endDate = `${date_to} 23:59:59`;
     } else {
       // Default to today (IST)
       const now = nowIST();
       endDateStr = formatIST(now, 'yyyy-MM-dd');
-      const dateIST = new Date(endDateStr + 'T23:59:59+05:30');
-      endDate = dateIST.toISOString();
+      endDate = `${endDateStr} 23:59:59`;
     }
 
     // OPTIMIZED: Select only needed columns for stats calculation (not *)
@@ -1292,17 +1290,18 @@ betting.get('/daily', async (c) => {
     // Default to today if no date provided
     const targetDate = date || formatIST(new Date(), 'yyyy-MM-dd');
     
-    // Get bet slips for the date
-    const startDateTime = new Date(targetDate + 'T00:00:00Z');
-    const endDateTime = new Date(targetDate + 'T23:59:59Z');
+    // CRITICAL: created_at is 'timestamp without time zone' and stores IST values.
+    // Use plain IST strings for comparison — no UTC conversion needed.
+    const startIST = `${targetDate} 00:00:00`;
+    const endIST = `${targetDate} 23:59:59`;
     
     // Fetch bet slips (no nested queries - fetch separately)
     const { data: betSlips, error } = await supabase
       .from('bet_slips')
       .select('*')
       .eq('user_id', user.id)
-      .gte('created_at', startDateTime.toISOString())
-      .lte('created_at', endDateTime.toISOString())
+      .gte('created_at', startIST)
+      .lte('created_at', endIST)
       .order('created_at', { ascending: false });
     
     if (error) {

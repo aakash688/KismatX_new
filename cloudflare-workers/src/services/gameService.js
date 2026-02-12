@@ -632,10 +632,12 @@ export async function createDailyGames(env, forceCreateAll = false) {
     const istNow = nowIST();
     const istComponents = getISTComponents(istNow);
     const year = istComponents.year;
-    const month = istComponents.month;
+    // CRITICAL: new Date() expects 0-indexed month (0-11), but istComponents.month is 1-indexed (1-12)
+    // Use getMonth() which returns 0-indexed, or subtract 1 from month
+    const month = istComponents.getMonth(); // 0-indexed for new Date()
     const date = istComponents.day;
     
-    // Create start datetime
+    // Create start datetime (month is 0-indexed for new Date constructor)
     let currentTime = new Date(year, month, date, startTimeObj.hours, startTimeObj.minutes, 0);
     const endDateTime = new Date(year, month, date, endTimeObj.hours, endTimeObj.minutes, 0);
     

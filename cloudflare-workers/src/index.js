@@ -97,9 +97,9 @@ app.get('/api/trigger-cron', async (c) => {
     const { nowIST, formatIST } = await import('./utils/timezone.js');
     
     const istNow = nowIST();
-    const timestamp = istNow.toString();
+    const timestamp = formatIST(istNow, 'yyyy-MM-dd HH:mm:ss');
     
-    console.log(`🔧 [MANUAL CRON] Triggered at ${timestamp}`);
+    console.log(`🔧 [MANUAL CRON] Triggered at ${timestamp} IST`);
     
     // Run game state management
     const activateResult = await activatePendingGames(c.env);

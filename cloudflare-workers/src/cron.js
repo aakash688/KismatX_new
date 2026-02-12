@@ -18,7 +18,7 @@
 
 import { createNextGame, activatePendingGames, completeActiveGames, recoverMissedGames, createDailyGames } from './services/gameService.js';
 import { autoSettleGames } from './services/settlementService.js';
-import { nowIST, formatIST } from './utils/timezone.js';
+import { nowIST, formatIST, getISTComponents } from './utils/timezone.js';
 
 /**
  * Get minute category for smart cron logic
@@ -67,8 +67,13 @@ export async function scheduled(event, env, ctx) {
   const cronExpression = event.cron;
   const istNow = nowIST();
   const timestamp = formatIST(istNow, 'yyyy-MM-dd HH:mm:ss');
-  const minute = istNow.getMinutes(); // Use IST minute for consistency
-  const hour = istNow.getHours(); // Use IST hour
+  // CRITICAL: Use getISTComponents() for IST hour/minute, NOT .getHours()/.getMinutes()
+  // nowIST() returns a UTC Date, so .getHours()/.getMinutes() give UTC values
+  // IST offset is +5:30, so hours are always wrong without conversion
+  // (Minutes happen to match for %5 checks since 30%5===0, but use IST for correctness)
+  const istComp = getISTComponents(istNow);
+  const minute = istComp.minutes;
+  const hour = istComp.hours;
   const category = getMinuteCategory(minute);
   
   console.log(`🕐 [CRON] Triggered at ${timestamp} IST (Expression: ${cronExpression}, Minute: ${minute}, Category: ${category.getCategoryName()})`);
